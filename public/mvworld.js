@@ -203,6 +203,7 @@ window.MVWorld = (function () {
       ],
       spawn: [0.50, 0.90], zones: [[0.40, 0.86], [0.62, 0.88], [0.63, 0.37]],
       view: { zoom: 1.5, cx: 0.50, cy: 0.62 },
+      ext: { ground: "#aec6b6", haze: "#dfe9e2", hazeDepth: 0.62, fade: { top: 70, bottom: 60, left: 80, right: 80 }, dirs: { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] } },
     },
     metro: {
       src: "worlds/commute.png", w: 1370, h: 906, bg: "#b5a0d0",
@@ -227,6 +228,7 @@ window.MVWorld = (function () {
       ],
       spawn: [0.55, 0.86], zones: [[0.47, 0.88], [0.42, 0.50], [0.68, 0.86]],
       view: { zoom: 1.6, cx: 0.52, cy: 0.62 },
+      ext: { ground: "#b5a0d0", haze: "#e6ddf2", hazeDepth: 0.75, fade: { top: 130, bottom: 130, left: 90, right: 130 }, dirs: { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] } },
     },
     office: {
       src: "worlds/office.png", w: 1536, h: 1024, bg: "#fdeadd",
@@ -248,8 +250,14 @@ window.MVWorld = (function () {
       ],
       spawn: [0.28, 0.75], zones: [[0.50, 0.62], [0.72, 0.86], [0.18, 0.62]],
       view: { zoom: 1.6, cx: 0.50, cy: 0.55 },
+      ext: { ground: "#f6ece4", haze: "#fdf3ea", fade: 250, dirs: { top: [0, -1], bottom: null, left: [-1, 0.5], right: [1, 0.5] } },
     },
   };
+  /* The playable reference art stays pixel-identical; the world is extended
+     ~8x in area (2.8x linear) with painted surroundings that continue each
+     scene — a larger station, campus, office floor — so zooming out reveals
+     a bigger world instead of an abrupt edge. */
+  const EXT_FACTOR = 2.8;
   function pointInPoly(poly, x, y) {
     let inside = false;
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -260,12 +268,14 @@ window.MVWorld = (function () {
   }
   function buildImageWorld(cfg, setting, time) {
     const W = 40, D = 28;
+    const ew = Math.round(cfg.w * EXT_FACTOR), eh = Math.round(cfg.h * EXT_FACTOR);
     const w = {
       imageMode: true, W, D, setting, time, pal: TIME[time] || TIME.day,
       h: new Array(W * D).fill(null), kind: new Array(W * D).fill(""), block: new Set(), water: new Set(),
       decor: [], mat: {}, zones: [], spawn: { x: 20, y: 20 },
       imgW: cfg.w, imgH: cfg.h, view: cfg.view, bg: cfg.bg, bgColor: cfg.bg,
       moveSpeed: 9, npcSpeed: 4, wanderSpan: 6, step: 2, figPx: 44,
+      ext: { W: ew, H: eh, ox: Math.round((ew - cfg.w) / 2), oy: Math.round((eh - cfg.h) / 2), cfg: cfg.ext || {} },
     };
     const img = new Image();
     img.decoding = "async"; img.src = cfg.src;
@@ -316,7 +326,7 @@ window.MVWorld = (function () {
       w.maxStep = 0.34;
     }
     w.walk = (x, y) => (x >= 0 && y >= 0 && x < W && y < D) && w.h[y * W + x] != null && !w.block.has(x + "," + y);
-    w.proj = (x, y) => ({ x: x / W * w.imgW, y: y / D * w.imgH });
+    w.proj = (x, y) => ({ x: w.ext.ox + x / W * w.imgW, y: w.ext.oy + y / D * w.imgH });
     const snap = (nx, ny) => {
       let cx = Math.min(W - 1, Math.max(0, Math.floor(nx * W)));
       let cy = Math.min(D - 1, Math.max(0, Math.floor(ny * D)));
@@ -331,7 +341,7 @@ window.MVWorld = (function () {
     };
     w.spawn = snap(cfg.spawn[0], cfg.spawn[1]);
     w.zones = cfg.zones.map(([nx, ny]) => snap(nx, ny));
-    w.bounds = { minX: 0, maxX: w.imgW, minY: 0, maxY: w.imgH };
+    w.bounds = { minX: 0, maxX: w.ext.W, minY: 0, maxY: w.ext.H };
     return w;
   }
 
@@ -360,12 +370,44 @@ window.MVWorld = (function () {
       }
     }
     w.bounds = { minX, maxX, minY, maxY };
+    /* extended world: the diorama sits on a larger plaza ring with its own
+       trees / lamps / benches, so zooming out reveals ~8x more world */
+    const E = 9;
+    w.extRing = E;
+    w.bounds0 = { minX, maxX, minY, maxY };
+    const gpal = w.mat.roof || w.mat.lawn || { top: w.pal.top };
+    w.extGround = { x0: -E, y0: -E, x1: W + E, y1: D + E, color: shade(gpal.top, 0.96), edge: shade(gpal.top, 0.88) };
+    w.extDecor = [];
+    const types = ["tree", "tree", "lamp", "bench", "planter", "tree", "lamp"];
+    for (let i = 0; i < 30; i++) {
+      const r1 = (hash(w.setting + "ex" + i) % 1000) / 1000, r2 = (hash(w.setting + "ey" + i) % 1000) / 1000;
+      const side = i % 4;
+      let x, y;
+      if (side === 0) { x = -E + 1 + r1 * (W + 2 * E - 2); y = -E + 1 + r2 * (E - 2); }
+      else if (side === 1) { x = -E + 1 + r1 * (W + 2 * E - 2); y = D + 1 + r2 * (E - 2); }
+      else if (side === 2) { x = -E + 1 + r1 * (E - 2); y = -E + 1 + r2 * (D + 2 * E - 2); }
+      else { x = W + 1 + r1 * (E - 2); y = -E + 1 + r2 * (D + 2 * E - 2); }
+      x = Math.round(x); y = Math.round(y);
+      const type = types[hash(w.setting + "et" + i) % types.length];
+      w.extDecor.push({ type, x, y, ...(type === "tree" ? { v: hash(w.setting + "ev" + i) % 3 } : {}), ...(type === "bench" ? { white: true } : {}) });
+    }
+    for (const [cx2, cy2] of [[-E, -E], [W + E, -E], [-E, D + E], [W + E, D + E]]) {
+      const p = iso(cx2, cy2, 0), pb = iso(cx2, cy2, -2);
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y - 70); maxY = Math.max(maxY, pb.y);
+    }
+    w.bounds = { minX, maxX, minY, maxY };
     return w;
   }
 
   /* ---------------- drawing primitives ---------------- */
   function diamond(ctx, x, y, z, fill) {
     const a = iso(x, y, z), b = iso(x + 1, y, z), c = iso(x + 1, y + 1, z), d = iso(x, y + 1, z);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+  }
+  function diamond2(ctx, x0, y0, x1, y1, z, fill) {
+    const a = iso(x0, y0, z), b = iso(x1, y0, z), c = iso(x1, y1, z), d = iso(x0, y1, z);
     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath();
     ctx.fillStyle = fill; ctx.fill();
   }
@@ -758,12 +800,440 @@ window.MVWorld = (function () {
     }
   }
 
+  /* ---------------- extended world (≈8x area around the playable art) ----------------
+     The reference PNG is drawn untouched on top; everything around it is painted
+     here in the same flat-shaded MV style so zooming out reveals a larger world:
+     a bigger station, a bigger campus, a bigger open-plan office. Built once into
+     an offscreen canvas (0.6x res — the playable art stays full-res lossless). */
+  const PTW = 104, PTH = 52, PZH = 44;
+  const piso = (x, y, z) => ({ x: (x - y) * PTW / 2, y: (x + y) * PTH / 2 - (z || 0) * PZH });
+  function pdiamond(c, x, y, z, fill) {
+    const a = piso(x, y, z), b = piso(x + 1, y, z), cc = piso(x + 1, y + 1, z), d = piso(x, y + 1, z);
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.lineTo(cc.x, cc.y); c.lineTo(d.x, d.y); c.closePath();
+    c.fillStyle = fill; c.fill();
+  }
+  function pface(c, p1, p2, zt, zb, fill) {
+    const a = { x: p1.x, y: p1.y - zt * PZH }, b = { x: p2.x, y: p2.y - zt * PZH };
+    const cc = { x: p2.x, y: p2.y - zb * PZH }, d = { x: p1.x, y: p1.y - zb * PZH };
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.lineTo(cc.x, cc.y); c.lineTo(d.x, d.y); c.closePath();
+    c.fillStyle = fill; c.fill();
+  }
+  function pbox(c, x, y, w, d, z0, z1, pal) {
+    const pB = piso(x + w, y, 0), pC = piso(x + w, y + d, 0), pD = piso(x, y + d, 0);
+    pface(c, pB, pC, z1, z0, pal.right); pface(c, pD, pC, z1, z0, pal.left);
+    const a = piso(x, y, z1), b = piso(x + w, y, z1), cc = piso(x + w, y + d, z1), dd = piso(x, y + d, z1);
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.lineTo(cc.x, cc.y); c.lineTo(dd.x, dd.y); c.closePath();
+    c.fillStyle = pal.top; c.fill();
+  }
+  function pslab(c, x0, y0, x1, y1, z0, z1, pal) { pbox(c, x0, y0, x1 - x0, y1 - y0, z0, z1, pal); }
+  /* --- small props (local origin = base centre) --- */
+  function pShadow(c, rx, ry) { c.fillStyle = "rgba(43,35,48,.10)"; c.beginPath(); c.ellipse(0, 5, rx, ry, 0, 0, 7); c.fill(); }
+  function pColumn(c, h, pal) {
+    pShadow(c, 26, 10);
+    pbox(c, -0.2, -0.2, 0.4, 0.4, 0, h, pal);
+    pbox(c, -0.3, -0.3, 0.6, 0.6, h, h + 0.16, { top: pal.top, left: pal.left, right: pal.right });
+  }
+  function pBench(c, pal) {
+    pShadow(c, 34, 12);
+    pbox(c, -0.5, -0.2, 1, 0.4, 0.22, 0.34, pal);
+    pbox(c, -0.5, -0.24, 1, 0.1, 0.34, 0.72, pal);
+    c.fillStyle = pal.right; c.fillRect(-22, -8, 4, 10); c.fillRect(18, -8, 4, 10);
+  }
+  function pTree(c, s, g) {
+    c.fillStyle = "rgba(43,35,48,.10)"; c.beginPath(); c.ellipse(0, 4, 26 * s, 9 * s, 0, 0, 7); c.fill();
+    c.fillStyle = "#8a6f5a"; c.fillRect(-3 * s, -20 * s, 6 * s, 20 * s);
+    c.fillStyle = g;
+    for (const [ox2, oy2, r] of [[0, -38, 19], [-14, -30, 13], [14, -30, 13], [-7, -48, 11], [8, -47, 11]]) { c.beginPath(); c.arc(ox2 * s, oy2 * s, r * s, 0, 7); c.fill(); }
+    c.fillStyle = shade(g, 1.1); c.beginPath(); c.arc(-5 * s, -43 * s, 10 * s, 0, 7); c.fill();
+  }
+  function pHedge(c, w, g) { pbox(c, -w / 2, -0.22, w, 0.44, 0, 0.42, { top: g, left: shade(g, 0.88), right: shade(g, 0.76) }); }
+  function pLamp(c) {
+    c.strokeStyle = "#6a5a70"; c.lineWidth = 3; c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -52); c.stroke();
+    c.fillStyle = "#f2d49b"; c.beginPath(); c.arc(0, -56, 7, 0, 7); c.fill();
+  }
+  function pPlanter(c) {
+    pShadow(c, 26, 10);
+    pbox(c, -0.34, -0.34, 0.68, 0.68, 0, 0.4, { top: "#e8b498", left: "#dca085", right: "#c08868" });
+    c.fillStyle = "#7fb89a"; c.beginPath(); c.arc(0, -26, 14, 0, 7); c.fill();
+    c.fillStyle = "#9fc48f"; c.beginPath(); c.arc(-8, -32, 8, 0, 7); c.arc(8, -30, 7, 0, 7); c.fill();
+  }
+  function pSign(c) {
+    c.strokeStyle = "#6a5a70"; c.lineWidth = 2; c.beginPath(); c.moveTo(-14, -64); c.lineTo(-14, -50); c.moveTo(14, -64); c.lineTo(14, -50); c.stroke();
+    c.fillStyle = "#2a4b5a"; roundRect(c, -24, -50, 48, 24, 4); c.fill();
+    c.fillStyle = "#fff"; c.fillRect(-16, -44, 20, 9); c.fillRect(8, -41, 8, 4);
+    c.beginPath(); c.arc(-9, -31, 2.2, 0, 7); c.arc(-2, -31, 2.2, 0, 7); c.fill();
+  }
+  function pVending(c) {
+    pShadow(c, 30, 11);
+    pbox(c, -0.4, -0.3, 0.8, 0.6, 0, 1.3, { top: "#e8a0a8", left: "#d08890", right: "#b87080" });
+    c.fillStyle = "#f6ecd9"; c.fillRect(-16, -44, 16, 26);
+    c.fillStyle = "#8fd4d9"; c.fillRect(-13, -40, 10, 6); c.fillRect(-13, -30, 10, 6);
+  }
+  function pTurnstile(c) {
+    pShadow(c, 26, 9);
+    pbox(c, -0.34, -0.24, 0.68, 0.48, 0, 0.8, { top: "#d8d8e0", left: "#b8b8c4", right: "#9898a8" });
+    c.fillStyle = "#e76f51"; c.fillRect(-2, -30, 22, 5);
+  }
+  function pTrain(c, len, z) {
+    const body = { top: "#d8d0d8", left: "#c0b0ba", right: "#a898a4" };
+    for (let i = 0; i < len; i++) {
+      pbox(c, i - len / 2, -0.5, 1, 1, z, z + 1.25, body);
+      const pD = piso(i - len / 2, 0.5, 0), pC = piso(i - len / 2 + 1, 0.5, 0);
+      const q = (u, v) => ({ x: pD.x + (pC.x - pD.x) * u, y: pD.y + (pC.y - pD.y) * u - v * PZH });
+      if (i % 4 === 1) {
+        const a = q(0.22, z + 1.05), b = q(0.78, z + 1.05), cc = q(0.78, z + 0.15), d = q(0.22, z + 0.15);
+        c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.lineTo(cc.x, cc.y); c.lineTo(d.x, d.y); c.closePath(); c.fillStyle = "#e76f51"; c.fill();
+      } else {
+        const a = q(0.2, z + 1.0), b = q(0.8, z + 1.0), cc = q(0.8, z + 0.55), d = q(0.2, z + 0.55);
+        c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.lineTo(cc.x, cc.y); c.lineTo(d.x, d.y); c.closePath(); c.fillStyle = "#3c546c"; c.fill();
+      }
+    }
+  }
+  function pGlassRail(c, len) {
+    for (let i = 0; i < len; i++) {
+      const p1 = piso(i - len / 2, 0.4, 1), p2 = piso(i - len / 2 + 1, 0.4, 1), p3 = piso(i - len / 2 + 1, 0.4, 0.15), p4 = piso(i - len / 2, 0.4, 0.15);
+      c.fillStyle = "rgba(150,199,198,.5)"; c.beginPath(); c.moveTo(p1.x, p1.y); c.lineTo(p2.x, p2.y); c.lineTo(p3.x, p3.y); c.lineTo(p4.x, p4.y); c.closePath(); c.fill();
+      c.strokeStyle = "rgba(110,160,160,.8)"; c.lineWidth = 1.6; c.beginPath(); c.moveTo(p1.x, p1.y); c.lineTo(p2.x, p2.y); c.stroke();
+    }
+  }
+  function pStairs(c, n, pal) { for (let i = 0; i < n; i++) pbox(c, -0.4, i * 0.28 - 0.4, 0.8, 0.3, i * 0.3, i * 0.3 + 0.3, pal); }
+  function pArchWall(c, w, h, pal) {
+    pbox(c, -w / 2, -0.3, w, 0.6, 0, h, pal);
+    const n = Math.max(1, Math.round(w / 2.4));
+    for (let i = 0; i < n; i++) {
+      const px = -w / 2 + (i + 0.5) * w / n;
+      const p = piso(px, 0.3, 0);
+      c.fillStyle = shade(pal.right, 0.62);
+      c.beginPath(); c.moveTo(p.x - 16, p.y); c.lineTo(p.x - 16, p.y - h * PZH * 0.5); c.arc(p.x, p.y - h * PZH * 0.5, 16, Math.PI, 0); c.lineTo(p.x + 16, p.y); c.closePath(); c.fill();
+    }
+  }
+  function pDesk(c) {
+    pShadow(c, 46, 16);
+    pbox(c, -0.7, -0.4, 1.4, 0.8, 0.3, 0.38, { top: "#ffffff", left: "#e8e2da", right: "#d0c8c0" });
+    c.fillStyle = "#c8c0b8"; c.fillRect(-30, -14, 4, 14); c.fillRect(26, -14, 4, 14);
+    pbox(c, -0.28, -0.3, 0.56, 0.1, 0.38, 0.78, { top: "#3a3350", left: "#2b2330", right: "#2b2330" });
+    pbox(c, -0.24, 0.5, 0.48, 0.44, 0, 0.34, { top: "#b8a8e0", left: "#a090cc", right: "#8878b4" });
+  }
+  function pPartition(c, w, color) { pbox(c, -w / 2, -0.1, w, 0.2, 0, 1.1, { top: color, left: shade(color, 0.88), right: shade(color, 0.76) }); }
+  function pMeetingRoom(c) {
+    pShadow(c, 120, 44);
+    const gl = { top: "rgba(205,232,224,.65)", left: "rgba(150,199,198,.5)", right: "rgba(130,180,178,.55)" };
+    pbox(c, -2, -1.6, 4, 3.2, 0, 1.5, gl);
+    pbox(c, -2.06, -1.66, 4.12, 3.32, 1.5, 1.6, { top: "#ffffff", left: "#e8e2da", right: "#d0c8c0" });
+    pbox(c, -0.8, -0.5, 1.6, 1, 0.3, 0.38, { top: "#ffffff", left: "#e8e2da", right: "#d0c8c0" });
+  }
+  function pCounter(c, len) {
+    pShadow(c, len * 26, 16);
+    pbox(c, -len / 2, -0.4, len, 0.8, 0, 0.7, { top: "#f2e3d5", left: "#e0c8b4", right: "#c8a890" });
+    pbox(c, -0.3, -0.3, 0.6, 0.5, 0.7, 1.1, { top: "#3a3350", left: "#2b2330", right: "#2b2330" });
+  }
+  function pArmchair(c, color) {
+    pShadow(c, 30, 11);
+    pbox(c, -0.45, -0.4, 0.9, 0.8, 0.16, 0.42, { top: color, left: shade(color, 0.88), right: shade(color, 0.76) });
+    pbox(c, -0.45, -0.44, 0.9, 0.16, 0.42, 0.85, { top: color, left: shade(color, 0.88), right: shade(color, 0.76) });
+  }
+  function pBuilding(c, w, d, h, wall, roof) {
+    pShadow(c, (w + d) * 24, (w + d) * 11);
+    pbox(c, -w / 2, -d / 2, w, d, 0, h, wall);
+    const rows = Math.max(1, Math.round(h / 1.1)), cols = Math.max(2, Math.round(w / 1.4));
+    const pB = piso(w / 2, -d / 2, 0), pC = piso(w / 2, d / 2, 0), pD = piso(-w / 2, d / 2, 0);
+    for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
+      const u0 = (col + 0.25) / cols, u1 = (col + 0.75) / cols;
+      const v0 = h - (r + 0.3) / rows * h, v1 = h - (r + 0.75) / rows * h;
+      const q = (p1, p2, u, v) => ({ x: p1.x + (p2.x - p1.x) * u, y: p1.y + (p2.y - p1.y) * u - v * PZH });
+      for (const [p1, p2] of [[pD, pC], [pB, pC]]) {
+        const a = q(p1, p2, u0, v0), b = q(p1, p2, u1, v0), cc = q(p1, p2, u1, v1), dd = q(p1, p2, u0, v1);
+        c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.lineTo(cc.x, cc.y); c.lineTo(dd.x, dd.y); c.closePath();
+        c.fillStyle = "#7a96b0"; c.fill();
+      }
+    }
+    pbox(c, -w / 2 - 0.15, -d / 2 - 0.15, w + 0.3, d + 0.3, h, h + 0.22, roof);
+    c.fillStyle = "#f4c55d";
+    const t1 = piso(-w / 2, d / 2, h * 0.52), t2 = piso(w / 2, d / 2, h * 0.52);
+    c.beginPath(); c.moveTo(t1.x, t1.y); c.lineTo(t2.x, t2.y); c.lineTo(t2.x, t2.y + 5); c.lineTo(t1.x, t1.y + 5); c.closePath(); c.fill();
+  }
+  function pFlag(c) {
+    c.strokeStyle = "#6a5a70"; c.lineWidth = 3; c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -70); c.stroke();
+    c.fillStyle = "#d98a7a"; c.beginPath(); c.moveTo(0, -70); c.lineTo(30, -63); c.lineTo(0, -56); c.closePath(); c.fill();
+  }
+  function pFence(c, len) {
+    c.strokeStyle = "#8a80a0"; c.lineWidth = 2.4;
+    const a = piso(-len / 2, 0, 0.5), b = piso(len / 2, 0, 0.5);
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    for (let i = 0; i <= len; i += 1.5) { const p = piso(i - len / 2, 0, 0); c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x, p.y - 26); c.stroke(); }
+  }
+  function pCourt(c, w, d) {
+    pslab(c, -w / 2, -d / 2, w / 2, d / 2, -0.04, 0.02, { top: "#d98a7a", left: "#c07a6a", right: "#a86a5a" });
+    c.strokeStyle = "rgba(255,255,255,.85)"; c.lineWidth = 2.4;
+    const a = piso(-w / 2 + 0.3, -d / 2 + 0.3, 0.03), b = piso(w / 2 - 0.3, -d / 2 + 0.3, 0.03), cc = piso(w / 2 - 0.3, d / 2 - 0.3, 0.03), d2 = piso(-w / 2 + 0.3, d / 2 - 0.3, 0.03);
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.lineTo(cc.x, cc.y); c.lineTo(d2.x, d2.y); c.closePath(); c.stroke();
+    const m1 = piso(0, -d / 2 + 0.3, 0.03), m2 = piso(0, d / 2 - 0.3, 0.03);
+    c.beginPath(); c.moveTo(m1.x, m1.y); c.lineTo(m2.x, m2.y); c.stroke();
+  }
+
+  /* office floor bands run diagonally; detect their direction from the art's
+     own bottom rows so the extension continues the exact same pattern */
+  function detectFloorDir(w) {
+    if (w._floorDir) return w._floorDir;
+    let dir = [0.5, 1];
+    try {
+      const iw = w.img.naturalWidth, ih = w.img.naturalHeight;
+      const cv = document.createElement("canvas"); cv.width = iw; cv.height = 64;
+      const c = cv.getContext("2d", { willReadFrequently: true });
+      c.drawImage(w.img, 0, ih - 64, iw, 64, 0, 0, iw, 64);
+      const d = c.getImageData(0, 0, iw, 64).data;
+      const px = (x, y) => { const i = (y * iw + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+      let best = 0, bs = 1e9;
+      for (let s = -120; s <= 120; s += 2) {
+        let sum = 0, n = 0;
+        for (let x = 140; x < iw - 140; x += 10) {
+          const a = px(x, 60), b = px(x + s, 20);
+          sum += Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]); n++;
+        }
+        if (n && sum / n < bs) { bs = sum / n; best = s; }
+      }
+      dir = [best / 40, 1];
+    } catch {}
+    w._floorDir = dir; return dir;
+  }
+
+  function paintExtGround(c, w) {
+    const e = w.ext, cfg = e.cfg;
+    c.fillStyle = cfg.ground || w.bg; c.fillRect(0, 0, e.W, e.H);
+    if (w.setting === "office") {
+      const dir = detectFloorDir(w), ang = Math.atan2(dir[1], dir[0]);
+      const cols = ["#d8e8dc", "#fcece8", "#ebe0ed", "#f6ece4"];
+      const L = Math.hypot(e.W, e.H), bw = 190;
+      c.save(); c.translate(e.W / 2, e.H / 2); c.rotate(ang);
+      for (let y = -L / 2, i = 0; y < L / 2; y += bw, i++) { c.fillStyle = cols[i % cols.length]; c.fillRect(-L / 2, y, L, bw + 1); }
+      c.restore();
+      /* behind the back wall (top corners) the wall planes continue, then
+         dissolve into light — windows keep them reading as building, not void */
+      const corner = (x0, wall) => {
+        const g = c.createLinearGradient(x0, e.oy, x0, 0);
+        g.addColorStop(0, wall); g.addColorStop(1, e.cfg.haze || "#fdf3ea");
+        c.fillStyle = g; c.fillRect(x0, 0, e.ox, e.oy);
+        c.fillStyle = "rgba(122,150,176,.4)";
+        for (let wy = e.oy - 130; wy > 60; wy -= 150)
+          for (let wx = x0 + 60; wx < x0 + e.ox - 90; wx += 170) c.fillRect(wx, wy, 90, 64);
+      };
+      corner(0, "#fad6c8");
+      c.save(); c.translate(e.W, 0); c.scale(-1, 1); corner(0, "#e6dde8"); c.restore();
+    }
+  }
+  function paintExtProps(c, w) {
+    const e = w.ext, cx = e.ox + w.imgW / 2, cy = e.oy + w.imgH / 2;
+    /* anchor in SCREEN px relative to the art centre — props must sit outside
+       the art rect (|sx| > imgW/2 or |sy| > imgH/2) to be visible */
+    const atS = (sx, sy, fn) => { c.save(); c.translate(cx + sx, cy + sy); c.scale(1.55, 1.55); fn(); c.restore(); };
+    const cream = { top: "#f8e1d3", left: "#e0c8b8", right: "#c8a898" };
+    const lilac = { top: "#e4dcf0", left: "#c8b8e0", right: "#9d8cb8" };
+    const white = { top: "#fdf6e3", left: "#e8e0cc", right: "#cfc6ae" };
+    if (w.setting === "metro") {
+      /* front: second platform, track trench with another train, far platform */
+      atS(0, 690, () => {
+        pslab(c, -11, -11, 11, 11, -0.1, 0.24, cream);
+        c.strokeStyle = "#f2d49b"; c.lineWidth = 4;
+        const l1 = piso(10, -10, 0.25), l2 = piso(10, 10, 0.25);
+        c.beginPath(); c.moveTo(l1.x, l1.y); c.lineTo(l2.x, l2.y); c.stroke();
+      });
+      atS(0, 980, () => { pslab(c, -11, -11, 11, 11, -0.55, -0.35, { top: "#3c546c", left: "#2e4256", right: "#243446" }); pTrain(c, 21, -0.35); });
+      atS(0, 1290, () => { pslab(c, -11, -11, 11, 11, -0.1, 0.24, cream); c.save(); c.translate(piso(0, -10.2, 0).x, piso(0, -10.2, 0).y); pGlassRail(c, 18); c.restore(); });
+      /* back: raised concourse, arched wall, columns, stair */
+      atS(0, -690, () => {
+        pslab(c, -9, -2.5, 9, 1.5, 0, 0.9, lilac);
+        c.save(); c.translate(0, -120); pArchWall(c, 17, 2.6, { top: "#e4dcf0", left: "#d8c8e8", right: "#9d8cb8" }); c.restore();
+        for (let x = -8; x <= 8; x += 4) at2(c, x, 1, () => pColumn(c, 2.2, lilac));
+      });
+      atS(-380, -560, () => pStairs(c, 4, cream));
+      /* left wing: gates, vending, bench, sign, stair */
+      atS(-950, -100, () => {
+        pslab(c, -3.5, -6, 3.5, 6, -0.1, 0.24, cream);
+        pTurnstile(c); c.save(); c.translate(90, 46); pTurnstile(c); c.restore();
+        c.save(); c.translate(-70, -150); pVending(c); c.restore();
+        c.save(); c.translate(30, 150); pBench(c, white); c.restore();
+        c.save(); c.translate(0, -60); pSign(c); c.restore();
+        c.save(); c.translate(-140, 60); pStairs(c, 5, lilac); c.restore();
+      });
+      /* street beyond the crossing */
+      atS(-1250, 260, () => {
+        for (let i = 0; i < 6; i++) { c.save(); c.translate(i * 34 - 80, i * 17); c.fillStyle = "rgba(253,251,247,.9)"; c.beginPath(); c.moveTo(0, 0); c.lineTo(44, 22); c.lineTo(30, 29); c.lineTo(-14, 7); c.closePath(); c.fill(); c.restore(); }
+        c.save(); c.translate(-60, -110); pLamp(c); c.restore();
+        c.save(); c.translate(50, -160); pTree(c, 1.1, "#8dae76"); c.restore();
+      });
+      /* right wing */
+      atS(950, 100, () => {
+        pslab(c, -3.5, -6, 3.5, 6, -0.1, 0.24, cream);
+        c.save(); c.translate(piso(0, -5.4, 0).x, piso(0, -5.4, 0).y); pGlassRail(c, 10); c.restore();
+        c.save(); c.translate(40, -130); pSign(c); c.restore();
+        c.save(); c.translate(-30, 140); pBench(c, white); c.restore();
+        c.save(); c.translate(100, 30); pVending(c); c.restore();
+        c.save(); c.translate(140, -70); pColumn(c, 2.4, lilac); c.restore();
+      });
+      atS(700, 1150, () => pTree(c, 1.2, "#8dae76"));
+      atS(-700, 1100, () => pLamp(c));
+      atS(0, 1230, () => pSign(c));
+    } else if (w.setting === "school") {
+      const beige = { top: "#f2e3d5", left: "#e0cdb8", right: "#c8b098" };
+      const pave = { top: "#e8dcc8", left: "#d8c8b0", right: "#c0ac90" };
+      const roof = { top: "#7a96b0", left: "#68849e", right: "#56728c" };
+      /* bigger paved campus island */
+      atS(0, 120, () => pslab(c, -20, -16, 20, 20, -0.12, 0.02, pave));
+      atS(0, 780, () => pslab(c, -16, -8, 16, 12, -0.12, 0.02, pave));
+      /* annex blocks flush against the seam buildings — same campus, longer wings */
+      atS(-920, -150, () => pBuilding(c, 4.5, 6, 2.5, beige, roof));
+      atS(920, -200, () => pBuilding(c, 4.5, 6, 2.5, beige, roof));
+      atS(0, -700, () => pBuilding(c, 10, 3, 2.2, beige, roof));
+      /* front: second court, lawns, trees, flag, benches, fence */
+      atS(0, 830, () => pCourt(c, 10, 4.5));
+      const lawn = (g) => { for (const [lx, ly] of [[-2, -1.5], [-1, -1.5], [-2, -0.5], [-1, -0.5]]) pdiamond(c, lx, ly, 0.02, g); };
+      atS(-1150, 600, () => { lawn("#a3c9a8"); pTree(c, 1.25, "#8dae76"); });
+      atS(1150, 650, () => { lawn("#a3c9a8"); pTree(c, 1.1, "#7fb89a"); });
+      atS(-1100, -650, () => { pHedge(c, 4, "#8dae76"); pTree(c, 1, "#8dae76"); });
+      atS(1150, -700, () => { pHedge(c, 4, "#7fb89a"); pTree(c, 1.15, "#8dae76"); });
+      atS(500, 1000, () => pFlag(c));
+      atS(-500, 980, () => pBench(c, white));
+      atS(900, 900, () => pLamp(c));
+      atS(-900, 900, () => pLamp(c));
+      atS(0, 1150, () => pFence(c, 26));
+      atS(-1280, 200, () => pFence(c, 12));
+      atS(1280, 150, () => pFence(c, 12));
+    } else if (w.setting === "office") {
+      /* more open-plan floor: desk clusters, partitions, meeting room, lounge */
+      const desks = [[-1000, 300], [1000, 350], [-500, 800], [500, 850], [-1100, -200], [1100, -150], [-800, 650], [850, 700]];
+      for (const [sx, sy] of desks) atS(sx, sy, () => { pDesk(c); c.save(); c.translate(120, 60); pDesk(c); c.restore(); });
+      atS(-700, 550, () => pPartition(c, 4, "#f2a08c"));
+      atS(700, 600, () => pPartition(c, 4, "#7fb89a"));
+      atS(1050, -450, () => pMeetingRoom(c));
+      atS(-1050, -500, () => pCounter(c, 4));
+      atS(0, 1000, () => {
+        for (const [lx, ly] of [[-2, -1.2], [-1, -1.2], [0, -1.2], [-2, -0.2], [-1, -0.2], [0, -0.2]]) pdiamond(c, lx, ly, 0.02, "#e8c8d8");
+        c.save(); c.translate(-70, -20); pArmchair(c, "#b8a8e0"); c.restore();
+        c.save(); c.translate(70, -20); pArmchair(c, "#f2c8a0"); c.restore();
+        c.save(); c.translate(0, 60); pPlanter(c); c.restore();
+      });
+      atS(-1200, 500, () => pPlanter(c));
+      atS(1200, 550, () => pPlanter(c));
+      atS(-300, 1050, () => pPlanter(c));
+      atS(400, 1080, () => pPlanter(c));
+    }
+  }
+  function at2(c, tx, ty, fn) { const p = piso(tx, ty, 0); c.save(); c.translate(p.x, p.y); fn(); c.restore(); }
+  /* extrude the art's own edge pixels outward along each edge's natural
+     direction, fading to nothing — guarantees a seamless colour match at the
+     seam while the painted surroundings take over further out */
+  function paintEdgeBands(c, w) {
+    const e = w.ext, cfg = e.cfg, iw = w.imgW, ih = w.imgH;
+    const fadeCfg = cfg.fade || 150, step = 4, T = 5;
+    const fadeFor = (edge) => typeof fadeCfg === "object" ? (fadeCfg[edge] || 150) : fadeCfg;
+    const dirs = { top: cfg.dirs.top || [0, -1], bottom: cfg.dirs.bottom || detectFloorDir(w), left: cfg.dirs.left || [-1, 0], right: cfg.dirs.right || [1, 0] };
+    for (const edge of ["top", "bottom", "left", "right"]) {
+      const N = Math.ceil(fadeFor(edge) / step), dr = dirs[edge];
+      for (let i = 0; i < N; i++) {
+        const d = i * step;
+        c.globalAlpha = Math.pow(1 - i / N, 1.7);
+        if (edge === "top") c.drawImage(w.img, 0, 0, iw, T, e.ox + dr[0] * d, e.oy + dr[1] * d - T, iw, T);
+        else if (edge === "bottom") c.drawImage(w.img, 0, ih - T, iw, T, e.ox + dr[0] * d, e.oy + ih + dr[1] * d, iw, T);
+        else if (edge === "left") c.drawImage(w.img, 0, 0, T, ih, e.ox + dr[0] * d - T, e.oy + dr[1] * d, T, ih);
+        else c.drawImage(w.img, iw - T, 0, T, ih, e.ox + iw + dr[0] * d, e.oy + dr[1] * d, T, ih);
+      }
+    }
+    c.globalAlpha = 1;
+  }
+  function paintExtHaze(c, w) {
+    const e = w.ext, hz = e.cfg.haze || "#ffffff", m = Math.min(e.ox, e.oy) * (e.cfg.hazeDepth || 0.92);
+    const grad = (x0, y0, x1, y1) => { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.55, hz + "aa"); g.addColorStop(1, hz); return g; };
+    c.fillStyle = grad(0, m, 0, 0); c.fillRect(0, 0, e.W, m);
+    c.fillStyle = grad(0, e.H - m, 0, e.H); c.fillRect(0, e.H - m, e.W, m);
+    c.fillStyle = grad(m, 0, 0, 0); c.fillRect(0, 0, m, e.H);
+    c.fillStyle = grad(e.W - m, 0, e.W, 0); c.fillRect(e.W - m, 0, m, e.H);
+  }
+  function extensionCanvas(w) {
+    if (w._extCv) return w._extCv;
+    const R = 0.75, e = w.ext;
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(e.W * R); cv.height = Math.round(e.H * R);
+    const c = cv.getContext("2d");
+    c.scale(R, R);
+    paintExtGround(c, w);
+    paintExtProps(c, w);
+    paintEdgeBands(c, w);
+    paintExtHaze(c, w);
+    w._extCv = cv;
+    return cv;
+  }
+
+  /* ---------------- shared view controls (pinch zoom + drag pan + tap) ---------------- */
+  function attachGestures(canvas, api) {
+    const pts = new Map();
+    let start = null, moved = false, last = null, pinch0 = 0, pinchZ0 = 1, downT = 0;
+    const dist = () => { const a = [...pts.values()]; return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); };
+    const mid = () => { const a = [...pts.values()]; return { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2 }; };
+    function down(e) {
+      if (api.blocked()) return;
+      canvas.setPointerCapture(e.pointerId);
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 1) { start = { x: e.clientX, y: e.clientY }; last = { x: e.clientX, y: e.clientY }; moved = false; downT = performance.now(); }
+      else if (pts.size === 2) { pinch0 = dist(); pinchZ0 = api.getZoom(); moved = true; }
+    }
+    function move(e) {
+      if (!pts.has(e.pointerId) || api.blocked()) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) {
+        const d = dist(), m = mid();
+        if (pinch0 > 0) api.setZoom(pinchZ0 * d / pinch0);
+        if (last) { const k = api.getK(); api.panBy((m.x - last.x) / k, (m.y - last.y) / k); }
+        last = m;
+      } else if (pts.size === 1 && start) {
+        if (!moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 9) moved = true;
+        if (moved) {
+          const k = api.getK();
+          api.panBy((e.clientX - last.x) / k, (e.clientY - last.y) / k);
+          last = { x: e.clientX, y: e.clientY };
+        }
+      }
+    }
+    function up(e) {
+      if (!pts.has(e.pointerId)) return;
+      pts.delete(e.pointerId);
+      if (pts.size === 0) {
+        if (!moved && start && performance.now() - downT < 500 && !api.blocked()) {
+          const r = canvas.getBoundingClientRect();
+          api.tap(start.x - r.left, start.y - r.top);
+        }
+        start = null; last = null;
+      } else if (pts.size === 1) {
+        const a = [...pts.values()][0];
+        start = { x: a.x, y: a.y }; last = { x: a.x, y: a.y }; moved = true; pinch0 = 0;
+      }
+    }
+    function wheel(e) {
+      if (api.blocked()) return;
+      e.preventDefault();
+      api.setZoom(api.getZoom() * Math.exp(-e.deltaY * 0.0012));
+    }
+    canvas.addEventListener("pointerdown", down);
+    canvas.addEventListener("pointermove", move);
+    canvas.addEventListener("pointerup", up);
+    canvas.addEventListener("pointercancel", up);
+    canvas.addEventListener("wheel", wheel, { passive: false });
+    return () => {
+      canvas.removeEventListener("pointerdown", down); canvas.removeEventListener("pointermove", move);
+      canvas.removeEventListener("pointerup", up); canvas.removeEventListener("pointercancel", up);
+      canvas.removeEventListener("wheel", wheel);
+    };
+  }
+
   /* ---------------- image-world renderer (reference art + figures) ---------------- */
   function createImageRenderer(canvas, world) {
     const ctx = canvas.getContext("2d");
     let cw = 0, ch = 0, dpr = 1, scale = 1;
-    let zoom = 1, zoomT = 1, focusT = null, cam = null, lastState = null;
+    let zoom = 1, cam = null, lastState = null;
+    const user = { zoom: 1, cam: null };   /* the player's own pan & zoom */
+    let conv = null;                        /* conversation framing override */
+    let tapFn = null, detachGestures = null;
     const FIGPX = world.figPx || 74;
+    const e = world.ext;
     function resize() {
       const r = canvas.parentElement.getBoundingClientRect();
       dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -774,18 +1244,19 @@ window.MVWorld = (function () {
     }
     resize();
     const ro = new ResizeObserver(resize); ro.observe(canvas.parentElement);
-    window.__mvimg = { world, tileAt, tileScreen, get cam() { return cam; }, get k() { return scale * zoom; }, get anchor() { return anchor(); }, get dpr() { return dpr; }, get size() { return { cw, ch }; }, get state() { return lastState; } };
-    const anchor = () => ({ x: cw / 2, y: ch * 0.58 });
+    const zoomMin = () => Math.min(cw / e.W, ch / e.H) / scale;
+    const zoomMax = () => 2.6;
+    const clampZoom = (z) => Math.min(zoomMax(), Math.max(zoomMin(), z));
+    const anchor = () => conv ? { x: cw / 2, y: conv.ay } : { x: cw / 2, y: ch * 0.58 };
     function clampCam(c) {
       const k = scale * zoom, a = anchor();
-      const minX = a.x / k, maxX = world.imgW - (cw - a.x) / k;
-      const minY = a.y / k, maxY = world.imgH - (ch - a.y) / k;
+      const minX = a.x / k, maxX = e.W - (cw - a.x) / k;
+      const minY = a.y / k, maxY = e.H - (ch - a.y) / k;
       return {
-        x: minX > maxX ? world.imgW / 2 : Math.min(Math.max(c.x, minX), maxX),
-        y: minY > maxY ? world.imgH / 2 : Math.min(Math.max(c.y, minY), maxY),
+        x: minX > maxX ? e.W / 2 : Math.min(Math.max(c.x, minX), maxX),
+        y: minY > maxY ? e.H / 2 : Math.min(Math.max(c.y, minY), maxY),
       };
     }
-    function setFocus(p) { focusT = p; zoomT = p ? 1.12 : 1; }
     function applyTransform() {
       const a = anchor(), k = scale * zoom;
       ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * (a.x - cam.x * k), dpr * (a.y - cam.y * k));
@@ -796,19 +1267,50 @@ window.MVWorld = (function () {
     }
     function tileAt(px, py) {
       const p = screenToWorld(px, py);
-      const gx = Math.floor(p.x / world.imgW * world.W), gy = Math.floor(p.y / world.imgH * world.D);
+      const gx = Math.floor((p.x - e.ox) / world.imgW * world.W), gy = Math.floor((p.y - e.oy) / world.imgH * world.D);
       return world.walk(gx, gy) ? { x: gx, y: gy } : null;
     }
     function tileScreen(x, y) {
       const p = world.proj(x + 0.5, y + 0.5), a = anchor(), k = scale * zoom;
       return { x: (p.x - cam.x) * k + a.x, y: (p.y - cam.y) * k + a.y };
     }
+    /* frame both talking characters fully inside the scene area above the
+       panel — LIVE: re-fits every frame while the player strolls over */
+    function frameConversation(npcId, visibleH) {
+      conv = { npcId, live: true, zoom: user.zoom, cam: cam ? { x: cam.x, y: cam.y } : null, ay: Math.max(110, visibleH * 0.42), vh: visibleH };
+    }
+    function convTarget(state) {
+      const npc = state.figures.find((f) => f.id === conv.npcId);
+      const pl = state.figures.find((f) => f.id === "player");
+      if (!npc || !pl) return;
+      const pa = world.proj(npc.x + 0.5, npc.y + 0.5), pb = world.proj(pl.x + 0.5, pl.y + 0.5);
+      const padX = world.imgW * 0.09, padY = world.imgH * 0.06;
+      const bw = Math.abs(pa.x - pb.x) + padX * 2, bh = Math.abs(pa.y - pb.y) + padY * 2;
+      const kx = (cw - 110) / bw, ky = (Math.max(160, conv.vh) - 120) / bh;
+      let k = Math.min(kx, ky);
+      k = Math.max(scale * zoomMin(), Math.min(k, scale * 2.2));
+      conv.zoom = k / scale;
+      conv.cam = { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 };
+    }
+    function clearConversation() { conv = null; }
+    function resumeFollow() { user.cam = null; }
+    detachGestures = attachGestures(canvas, {
+      blocked: () => !!conv,
+      getK: () => scale * zoom,
+      getZoom: () => user.zoom,
+      setZoom: (z) => { user.zoom = clampZoom(z); },
+      panBy: (dx, dy) => { user.cam = clampCam({ x: (user.cam || cam).x - dx, y: (user.cam || cam).y - dy }); },
+      tap: (px, py) => { if (tapFn) tapFn(px, py); },
+    });
+    window.__mvimg = { world, tileAt, tileScreen, get cam() { return cam; }, get k() { return scale * zoom; }, get anchor() { return anchor(); }, get dpr() { return dpr; }, get size() { return { cw, ch }; }, get state() { return lastState; }, get user() { return user; }, get conv() { return conv; } };
     function draw(state, t) {
       lastState = state;
+      if (conv && conv.live) convTarget(state);
+      const zoomT = conv ? conv.zoom : clampZoom(user.zoom);
       zoom += (zoomT - zoom) * 0.08;
       const player = state.figures.find((f) => f.id === "player");
       const viewC = world.proj(world.view.cx * world.W, world.view.cy * world.D);
-      let camT = focusT || (player ? world.proj(player.x + 0.5, player.y + 0.5) : viewC);
+      let camT = conv ? conv.cam : (user.cam || (player ? world.proj(player.x + 0.5, player.y + 0.5) : viewC));
       if (!cam) cam = { x: camT.x, y: camT.y };
       cam.x += (camT.x - cam.x) * 0.08; cam.y += (camT.y - cam.y) * 0.08;
       cam = clampCam(cam);
@@ -817,14 +1319,16 @@ window.MVWorld = (function () {
       if (!world.imgReady) return;
       applyTransform();
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(world.img, 0, 0);
+      /* extended world underneath, then the untouched reference art on top */
+      ctx.drawImage(extensionCanvas(world), 0, 0, e.W, e.H);
+      ctx.drawImage(world.img, e.ox, e.oy);
       if (world.debug) {
         const cw2 = world.imgW / world.W, ch2 = world.imgH / world.D;
         for (let y = 0; y < world.D; y++) for (let x = 0; x < world.W; x++) {
           const h = world.h[y * world.W + x];
           if (h == null) continue;
           const col = h >= 1.6 ? "rgba(80,140,255,.4)" : h >= 0.6 ? "rgba(255,210,80,.4)" : "rgba(90,220,120,.4)";
-          ctx.fillStyle = col; ctx.fillRect(x * cw2, y * ch2, cw2 - 1, ch2 - 1);
+          ctx.fillStyle = col; ctx.fillRect(e.ox + x * cw2, e.oy + y * ch2, cw2 - 1, ch2 - 1);
         }
       }
       const k = scale * zoom, s = FIGPX / (44 * k);
@@ -844,7 +1348,7 @@ window.MVWorld = (function () {
       for (const oc of world.occluders || []) items.push({ d: oc[1][1] * world.D, f: () => {
         const sx = oc[0][0] * world.imgW, sy = oc[0][1] * world.imgH;
         const sw = (oc[1][0] - oc[0][0]) * world.imgW, sh = (oc[1][1] - oc[0][1]) * world.imgH;
-        ctx.drawImage(world.img, sx, sy, sw, sh, sx, sy, sw, sh);
+        ctx.drawImage(world.img, sx, sy, sw, sh, e.ox + sx, e.oy + sy, sw, sh);
       } });
       items.sort((a, b) => a.d - b.d);
       for (const it of items) it.f();
@@ -858,7 +1362,12 @@ window.MVWorld = (function () {
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    return { draw, resize, tileAt, tileScreen, setFocus, get zoom() { return scale * zoom; }, get figH() { return FIGPX; }, destroy() { ro.disconnect(); } };
+    return {
+      draw, resize, tileAt, tileScreen, frameConversation, clearConversation, resumeFollow,
+      setTapHandler(fn) { tapFn = fn; },
+      get zoom() { return scale * zoom; }, get figH() { return FIGPX; },
+      destroy() { ro.disconnect(); if (detachGestures) detachGestures(); },
+    };
   }
 
   /* ---------------- scene renderer (zoomed + camera follow) ---------------- */
@@ -867,8 +1376,10 @@ window.MVWorld = (function () {
     if (world.imageMode) return createImageRenderer(canvas, world);
     const ctx = canvas.getContext("2d");
     let cw = 0, ch = 0, dpr = 1, scale = 1;
-    let zoom = 1, zoomT = 1, focus = null, focusT = null;
-    let cam = null, camT = null;
+    let zoom = 1;
+    let cam = null;
+    const user = { zoom: 1, cam: null };
+    let conv = null, tapFn = null, detachGestures = null;
     const FIG = 1.28;                          /* bigger, finger-friendly people */
     function resize() {
       const r = canvas.parentElement.getBoundingClientRect();
@@ -876,16 +1387,53 @@ window.MVWorld = (function () {
       cw = Math.max(50, r.width); ch = Math.max(50, r.height);
       canvas.width = cw * dpr; canvas.height = ch * dpr;
       canvas.style.width = cw + "px"; canvas.style.height = ch + "px";
-      const b = world.bounds, bw = b.maxX - b.minX, bh = b.maxY - b.minY;
+      const b = world.bounds0 || world.bounds, bw = b.maxX - b.minX, bh = b.maxY - b.minY;
       const fit = Math.min((cw - 24) / bw, (ch - 24) / bh);
       /* zoom in so a tile is ~56px wide (tappable); camera follows the player */
       scale = Math.min(Math.max(fit, 56 / TW), fit * 2.6);
     }
     resize();
     const ro = new ResizeObserver(resize); ro.observe(canvas.parentElement);
-
-    function setFocus(p) { focusT = p; zoomT = p ? 1.16 : 1; }
-    function anchor() { return { x: cw / 2, y: ch * 0.56 }; }
+    const zoomMin = () => {
+      const b = world.bounds, bw = b.maxX - b.minX, bh = b.maxY - b.minY;
+      return Math.min(cw / bw, ch / bh) / scale;
+    };
+    const clampZoom = (z) => Math.min(2.6, Math.max(zoomMin(), z));
+    const anchor = () => conv ? { x: cw / 2, y: conv.ay } : { x: cw / 2, y: ch * 0.56 };
+    function clampCam(c) {
+      const k = scale * zoom, a = anchor(), b = world.bounds;
+      const minX = b.minX + a.x / k, maxX = b.maxX - (cw - a.x) / k;
+      const minY = b.minY + a.y / k, maxY = b.maxY - (ch - a.y) / k;
+      return {
+        x: minX > maxX ? (b.minX + b.maxX) / 2 : Math.min(Math.max(c.x, minX), maxX),
+        y: minY > maxY ? (b.minY + b.maxY) / 2 : Math.min(Math.max(c.y, minY), maxY),
+      };
+    }
+    function frameConversation(npcId, visibleH) {
+      conv = { npcId, live: true, zoom: user.zoom, cam: cam ? { x: cam.x, y: cam.y } : null, ay: Math.max(110, visibleH * 0.42), vh: visibleH };
+    }
+    function convTarget(state) {
+      const npc = state.figures.find((f) => f.id === conv.npcId);
+      const pl = state.figures.find((f) => f.id === "player");
+      if (!npc || !pl) return;
+      const pa = iso(npc.x + 0.5, npc.y + 0.5, npc.z), pb = iso(pl.x + 0.5, pl.y + 0.5, pl.z);
+      const bw = Math.abs(pa.x - pb.x) + 150, bh = Math.abs(pa.y - pb.y) + 110;
+      const kx = (cw - 110) / bw, ky = (Math.max(160, conv.vh) - 120) / bh;
+      let k = Math.min(kx, ky);
+      k = Math.max(scale * zoomMin(), Math.min(k, scale * 2.2));
+      conv.zoom = k / scale;
+      conv.cam = { x: (pa.x + pb.x) / 2, y: (pa.y + pb.y) / 2 - 20 };
+    }
+    function clearConversation() { conv = null; }
+    function resumeFollow() { user.cam = null; }
+    detachGestures = attachGestures(canvas, {
+      blocked: () => !!conv,
+      getK: () => scale * zoom,
+      getZoom: () => user.zoom,
+      setZoom: (z) => { user.zoom = clampZoom(z); },
+      panBy: (dx, dy) => { user.cam = clampCam({ x: (user.cam || cam).x - dx, y: (user.cam || cam).y - dy }); },
+      tap: (px, py) => { if (tapFn) tapFn(px, py); },
+    });
     function applyTransform() {
       const a = anchor(), k = scale * zoom;
       ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * (a.x - cam.x * k), dpr * (a.y - cam.y * k));
@@ -913,17 +1461,30 @@ window.MVWorld = (function () {
     }
 
     function draw(state, t) {
+      if (conv && conv.live) convTarget(state);
+      const zoomT = conv ? conv.zoom : clampZoom(user.zoom);
       zoom += (zoomT - zoom) * 0.08;
       const player = state.figures.find((f) => f.id === "player");
-      camT = focusT || (player ? iso(player.x + 0.5, player.y + 0.5, player.z) : iso(world.spawn.x, world.spawn.y, 0));
+      const camT = conv ? conv.cam : (user.cam || (player ? iso(player.x + 0.5, player.y + 0.5, player.z) : iso(world.spawn.x, world.spawn.y, 0)));
       if (!cam) cam = { x: camT.x, y: camT.y };
       cam.x += (camT.x - cam.x) * 0.06; cam.y += (camT.y - cam.y) * 0.06;
-      if (focusT) { focus = focusT; } else focus = null;
+      cam = clampCam(cam);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       paintSky(ctx, cw, ch, world.pal, t, world.time);
       applyTransform();
       const pal = world.pal;
       const items = [];
+      /* extended plaza ground under everything */
+      if (world.extGround) {
+        const g = world.extGround;
+        items.push({ d: -1e8, f: () => {
+          diamond2(ctx, g.x0, g.y0, g.x1, g.y1, -0.02, g.color);
+          ctx.strokeStyle = g.edge; ctx.lineWidth = 2;
+          const a = iso(g.x0, g.y1, -0.02), b = iso(g.x1, g.y1, -0.02), c2 = iso(g.x1, g.y0, -0.02);
+          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c2.x, c2.y); ctx.stroke();
+        } });
+        for (const d of world.extDecor) items.push({ d: d.x + d.y + 0.4, f: () => paintDecor(ctx, world, d, t) });
+      }
       for (let y = 0; y < world.D; y++) for (let x = 0; x < world.W; x++) {
         const key = x + "," + y, h = world.h[y * world.W + x];
         const kind = world.kind[y * world.W + x];
@@ -991,7 +1552,12 @@ window.MVWorld = (function () {
       for (const it of items) it.f();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    return { draw, resize, tileAt, tileScreen, setFocus, get zoom() { return zoom * scale; }, get figH() { return 44 * FIG * zoom * scale; }, destroy() { ro.disconnect(); } };
+    return {
+      draw, resize, tileAt, tileScreen, frameConversation, clearConversation, resumeFollow,
+      setTapHandler(fn) { tapFn = fn; },
+      get zoom() { return zoom * scale; }, get figH() { return 44 * FIG * zoom * scale; },
+      destroy() { ro.disconnect(); if (detachGestures) detachGestures(); },
+    };
   }
 
   /* ---------------- selection: the round hall of pillars ---------------- */

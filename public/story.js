@@ -244,13 +244,12 @@
     S.pctx = S.portrait.getContext("2d");
     updateActive();
 
-    /* input */
-    S.onTap = (e) => {
+    /* input — the renderer owns gestures (pinch zoom / drag pan) and reports
+       clean taps here; a walk tap re-enables camera follow */
+    S.onTap = (px, py) => {
       Audio.ensure();
       if (S.intro) { introTap(); return; }
       if (S.conv || S.ended) return;
-      const r = S.canvas.getBoundingClientRect();
-      const px = e.clientX - r.left, py = e.clientY - r.top;
       /* NPC hit first */
       let hit = null, hd = 1e9;
       for (const n of S.npcs) {
@@ -270,10 +269,11 @@
           S.player.path = path; S.player.p = 0;
           S.ripple = { x: tile.x, y: tile.y, t0: performance.now() };
           S.walked = true; maybeHideHint();
+          S.renderer.resumeFollow();
         }
       }
     };
-    S.canvas.addEventListener("pointerdown", S.onTap);
+    S.renderer.setTapHandler(S.onTap);
     S.onPanelTap = (e) => {
       if (e.target.closest(".mv-input") || e.target.closest("button")) return;
       advance();
@@ -455,8 +455,12 @@
     npc.path = []; npc.moving = false;
     npc.face = S.player.x < npc.x ? -1 : 1;
     S.conv = { npc, tapOnly: !queue.length };
-    S.renderer.setFocus(S.world.proj(npc.x + 0.5, npc.y + 0.5, npc.z));
     S.panel.hidden = false;
+    /* frame BOTH characters fully in the scene area above the panel (live —
+       keeps them framed while the player strolls over); the player's own
+       pan/zoom is restored when the conversation closes */
+    const panelH = S.panel.offsetHeight || Math.max(220, S.canvas.clientHeight * 0.42);
+    S.renderer.frameConversation(npc.id, S.canvas.clientHeight - panelH);
     S.nextBtn.hidden = false;
     requestAnimationFrame(() => S.panel.classList.add("is-on"));
     showPortrait();
@@ -484,7 +488,7 @@
     S.panel.classList.remove("is-on");
     hidePortrait();
     setTimeout(() => { if (S && !S.conv) S.panel.hidden = true; }, 320);
-    S.renderer.setFocus(null);
+    S.renderer.clearConversation();
     npc.expr = (npc.c.expressions && npc.c.expressions[0]) || "neutral";
     npc.nextWander = Date.now() + 3000;
     if (!wasTap) {
@@ -507,10 +511,18 @@
     S.nextBtn.hidden = false;
     if (S.tickTimer) { clearInterval(S.tickTimer); S.tickTimer = null; }
     S.caretEl.hidden = true;
+    S.scrollEl.scrollTop = 0;
+    if (sc.input) {
+      /* question turn: the question and its options/answer box appear at once —
+         no letter-by-letter typing, no speed-up, no scroll jump */
+      stopTyping();
+      S.typedEl.textContent = sc.text || "";
+      showQuestion(sc);
+      return;
+    }
     typeText(sc.text || "", () => {
       if (!S || S.closed || !S.conv) return;
-      if (sc.input) setTimeout(() => { if (S && !S.closed && S.conv && S.conv.scene === sc) showQuestion(sc); }, 260);
-      else S.caretEl.hidden = false;
+      S.caretEl.hidden = false;
     });
   }
 
@@ -567,7 +579,6 @@
     S.inputEl.innerHTML = html;
     S.inputEl.hidden = false;
     S.nextBtn.hidden = true;
-    S.scrollEl.scrollTop = S.scrollEl.scrollHeight;
     const answer = (value, timedOut) => {
       if (S.answeredBeat === sc.id) return;
       S.answeredBeat = sc.id;
@@ -657,7 +668,6 @@
     if (S.qTimer) clearTimeout(S.qTimer);
     if (S.tickTimer) clearInterval(S.tickTimer);
     if (S.nudgeTimer) clearTimeout(S.nudgeTimer);
-    if (S.canvas) S.canvas.removeEventListener("pointerdown", S.onTap);
     if (S.renderer) S.renderer.destroy();
     if (S.body) S.body.classList.remove("gp-body-story", "js");
     Audio.stopMusic();
