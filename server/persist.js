@@ -24,7 +24,9 @@ const TABLES = [
   "user_preferences", "user_vectors", "item_stats", "seen_items", "feed_events",
   "social_conversations", "social_messages", "audit_log",
 ];
-const CAPS = { feed_events: 6000, seen_items: 6000, social_messages: 4000, audit_log: 2000 };
+// seen_items uses a 72-hour TTL. A row cap would lose recent history for
+// other users on restart and permit repeats inside the exclusion window.
+const CAPS = { feed_events: 6000, social_messages: 4000, audit_log: 2000 };
 const CHUNK_BYTES = 600 * 1024;
 
 const dirty = new Set();

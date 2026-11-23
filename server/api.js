@@ -280,14 +280,15 @@ async function handle(req, res, url, body, user, token) {
     if (!needUser()) return;
     const tab = url.searchParams.get("tab") === "discover" ? "post" : "study";
     const refresh = url.searchParams.get("refresh") === "1";
-    const order = recommend.rankFeed(user.id, tab, { limit: 30, refresh });
+    const exclude = String(url.searchParams.get("exclude") || "").split(",").filter(Boolean).slice(0, 120);
+    const order = recommend.rankFeed(user.id, tab, { limit: 30, refresh, exclude });
     return ok(tab === "post" ? discoveriesPayload(order) : studiesPayload(order));
   }
   /* implicit feedback → the ranking model (dwell, watch fraction, skips…) */
   if (p === "/api/events" && method === "POST") {
     if (!needUser()) return;
     const kind = String(body.kind || "");
-    if (!["dwell", "watch", "skip", "not_interested", "complete"].includes(kind)) return bad("Unknown event kind.");
+    if (!["impression", "dwell", "watch", "skip", "not_interested", "complete"].includes(kind)) return bad("Unknown event kind.");
     recommend.event(user.id, String(body.item_id || ""), kind, Number(body.value) || 0);
     return ok({ ok: true });
   }

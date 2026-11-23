@@ -3,7 +3,7 @@
    fresh on every load when online (cache is only an offline fallback), so a
    republished fix can never be masked by a stale cached UI. */
 "use strict";
-const VERSION = "earnest-shell-v34";
+const VERSION = "earnest-shell-v35";
 const SHELL = [
   "/", "/index.html", "/app.css", "/story.css", "/tokens.css", "/base.css", "/app.js", "/mvworld.js", "/mv3d.js", "/vendor/three.min.js", "/story.js",
   "/worlds/courtyard.jpg", "/worlds/courtyard.png", "/worlds/school.png", "/worlds/commute.jpg", "/worlds/commute.png", "/worlds/rooftop.jpg", "/worlds/office.png",

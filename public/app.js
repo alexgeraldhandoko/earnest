@@ -24,7 +24,8 @@ const state = {
   oauth: { google: { configured: false }, apple: { configured: false } },
   withdrawRules: { min_cents: 1000, fee_rate: 0.02, min_fee_cents: 25 },
   feedTab: "gold",
-  sound: false,
+  feedPositions: { gold: 0, discover: 0 },
+  sound: true,
   preferences: null,
   feedLoading: false,
 };
@@ -36,6 +37,7 @@ async function api(path, opts = {}) {
     headers: opts.body ? { "Content-Type": "application/json" } : {},
     body: opts.body ? JSON.stringify(opts.body) : undefined,
     credentials: "same-origin",
+    keepalive: path === "/api/events",
   });
   let data = {};
   try { data = await res.json(); } catch {}
@@ -81,7 +83,6 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const icon = (id, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const money = (n) => `$${n.toFixed(2)}`;
-state.sound = false;
 function photoAvatar(p, cls = "") {
   return p && p.photo
     ? `<img class="avatar-img ${cls}" src="${p.photo}" alt="Portrait of ${esc(p.name || "profile")}" loading="lazy" decoding="async">`
@@ -121,8 +122,25 @@ function closeModal() {
 /* ---------- router ---------- */
 const routes = {};
 let navDirection = "none";   // push | back | tab | none
-function go(hash) { navDirection = "push"; location.hash = hash; }
-function back() { navDirection = "back"; if (history.length > 1) history.back(); else go("#/feed"); }
+let routeSerial = 0;
+const routePositions = new Map();
+function routeState(trail) { return { earnest: { id: `${Date.now()}-${++routeSerial}`, trail } }; }
+function go(hash) {
+  if (location.hash === hash) return;
+  navDirection = "push";
+  history.pushState(routeState([...navStack, hash]), "", hash);
+  render();
+}
+function switchTab(hash) {
+  navDirection = "tab";
+  history.replaceState(routeState([hash]), "", hash);
+  render();
+}
+function back() {
+  if (swipeBusy && !popAnim) return;
+  if (navStack.length > 1) { navDirection = "back"; history.back(); }
+  else switchTab(`#/${routes[$("#screen").dataset.view]?.tab || "feed"}`);
+}
 
 const AUTH_ROUTES = ["welcome", "login", "register"];
 let renderSeq = 0;
@@ -131,6 +149,7 @@ let navStack = [];      // hash trail of pushed pages; tab switches reset it
 let underlays = [];     // detached page snapshots, one per navStack level below the top
 let popAnim = false;    // an interactive swipe already animated the pop — land instantly
 let swipe = null;       // live swipe-back gesture
+let swipeEpoch = 0;
 let swipeBusy = false;  // settle spring running — no new gesture until it lands
 async function render() {
   const seq = ++renderSeq;
@@ -143,20 +162,31 @@ async function render() {
   if (state.user && !state.preferences && name !== "onboarding") { location.hash = "#/onboarding"; return; }
   const key = routes[name] ? name : (routes[name + "/:id"] ? name + "/:id" : "feed");
   const view = routes[key] || routes.feed;
-  const screen = $("#screen");
+  let screen = $("#screen");
+  if (screen._routeId) {
+    routePositions.set(screen._routeId, { scroll: screen.scrollTop, reelIndex: state.reelIndex, feedTab: state.feedTab });
+    if (routePositions.size > 100) routePositions.delete(routePositions.keys().next().value);
+  }
+  let entry = history.state?.earnest;
+  if (!entry || entry.trail[entry.trail.length - 1] !== hash) {
+    history.replaceState(routeState([hash]), "", hash);
+    entry = history.state.earnest;
+  }
+  const restore = routePositions.get(entry.id);
   const dir = navDirection; navDirection = "none";
   /* swipe-back bookkeeping: a repaint mid-gesture aborts it; the trail tells
      us whether a pop is possible and which page waits underneath */
   if (swipe || (swipeBusy && !popAnim)) { swipe = null; resetSwipeLayers(); }
-  if (dir === "push") {
-    if (navStack[navStack.length - 1] !== hash) navStack.push(hash);
-  } else if (dir === "back") {
-    if (navStack.length > 1) navStack.pop(); else navStack = [hash];
-    if (!popAnim) discardUnderlay();
-  } else if (dir === "tab") {
-    navStack = [hash]; clearUnderlays();
-  } else if (!navStack.length || navStack[navStack.length - 1] !== hash) {
-    navStack = [hash]; clearUnderlays();
+  if (popAnim && dir !== "back") { popAnim = false; resetSwipeLayers(); }
+  if (dir === "back") {
+    if (!popAnim) while (underlays.length > Math.max(0, entry.trail.length - 1)) discardUnderlay();
+  } else if (dir === "tab" || (dir === "none" && navStack[navStack.length - 1] !== hash)) {
+    clearUnderlays();
+  }
+  navStack = entry.trail.slice();
+  if (dir === "back" && restore && key === "feed") {
+    state.reelIndex = restore.reelIndex;
+    state.feedTab = restore.feedTab;
   }
   const prevKey = screen.dataset.view || "";
   const hadChildren = screen.children.length > 0;
@@ -187,6 +217,7 @@ async function render() {
     reelTeardown = feedKeep.handle;
     feedKeep = null;
     screen.dataset.view = key;
+    screen._routeId = entry.id;
     screen.scrollTop = 0;
     screen.style.overflowY = "hidden";
     document.body.classList.toggle("authed", !!state.user);
@@ -209,7 +240,10 @@ async function render() {
   if (dir === "tab") {
     screen.querySelectorAll("video").forEach((v) => { v.pause(); if (v.getAttribute("src")) { v.removeAttribute("src"); v.load(); } });
   }
+  closeViewer();
+  if (screen._stopPoll) screen._stopPoll();
   teardownReels();
+  screen.querySelectorAll(".nav-ghost").forEach((g) => { g.remove(); g.className = "swipe-under"; });
   screen.dataset.view = key;
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const animate = dir !== "none" && !reduceMotion && hadChildren && !popAnim;
@@ -224,24 +258,33 @@ async function render() {
     ghost._stripScroll = liveStrip ? liveStrip.scrollTop : 0;
     while (screen.firstChild) ghost.appendChild(screen.firstChild);
     ghost.querySelectorAll("video").forEach((v) => v.pause());
+    if (dir === "push") underlays.push(ghost);
   }
+  /* Each async view owns its screen. A late response can only paint its
+     detached element after navigation, never overwrite the current page. */
+  const nextScreen = screen.cloneNode(false);
+  screen.replaceWith(nextScreen);
+  screen = nextScreen;
+  screen._routeId = entry.id;
+  screen.style.transform = ""; screen.style.transition = ""; screen.style.zIndex = "";
+  screen.classList.remove("swiping");
   screen.scrollTop = 0;
   screen.style.overflowY = key === "feed" ? "hidden" : "auto";
   document.body.classList.toggle("authed", !!state.user);
   await view(screen, ...params);
   if (seq !== renderSeq) return; // a newer navigation took over while this view loaded
+  if (dir === "back" && restore) screen.scrollTop = restore.scroll;
   if (popAnim) {
     /* the interactive swipe already carried the old page out and revealed the
        previous one — land the re-rendered page instantly, drop the snapshot */
     popAnim = false;
     swipeBusy = false;
     resetSwipeLayers();
-    discardUnderlay();
+    while (underlays.length > Math.max(0, navStack.length - 1)) discardUnderlay();
   }
   if (ghost && !animate) {
     /* reduced-motion push: no slide, but keep the snapshot for swipe-back */
     ghost.className = "swipe-under";
-    underlays.push(ghost);
   }
   if (animate) {
     const cls = dir === "tab" ? "view-tab" : dir === "back" ? "view-back" : "view-enter";
@@ -271,7 +314,7 @@ async function render() {
           ghost.querySelectorAll("video").forEach((v) => v.pause());
           ghost.remove();
           ghost.className = "swipe-under";
-          underlays.push(ghost);
+
         } else {
           /* the ghost kept its last frame for the slide; now free its media too */
           ghost.querySelectorAll("video").forEach((v) => { v.pause(); if (v.getAttribute("src")) { v.removeAttribute("src"); v.load(); } });
@@ -302,6 +345,7 @@ function releaseUnderlay(u) {
 function discardUnderlay() { releaseUnderlay(underlays.pop()); }
 function clearUnderlays() { while (underlays.length) releaseUnderlay(underlays.pop()); }
 function resetSwipeLayers() {
+  swipeEpoch++; swipeBusy = false;
   const screen = $("#screen");
   screen.style.transform = ""; screen.style.transition = ""; screen.style.zIndex = "";
   screen.classList.remove("swiping");
@@ -318,7 +362,7 @@ function swipeTarget() {
   if (viewer) return { mode: "viewer", layer: viewer };
   /* one snapshot per level below the top — a push still animating has not
      stored its snapshot yet, so the gesture waits until the trail is complete */
-  if (navStack.length > 1 && underlays.length === navStack.length - 1) return { mode: "page", layer: $("#screen") };
+  if (navStack.length > 1 && underlays.length === navStack.length - 1 && !topUnderlay().isConnected) return { mode: "page", layer: $("#screen") };
   return null;
 }
 function applySwipe(s, p) {
@@ -346,17 +390,20 @@ function engageSwipe(s) {
   applySwipe(s, 0);
 }
 function settleSwipe(s, complete) {
+  const epoch = ++swipeEpoch;
   swipeBusy = true;
   const ease = "transform 300ms var(--ease-out), opacity 300ms var(--ease-out)";
   s.layer.style.transition = ease;
   s.under.style.transition = ease;
   s.dim.style.transition = "opacity 300ms var(--ease-out)";
   requestAnimationFrame(() => {
+    if (epoch !== swipeEpoch) return;
     s.layer.style.transform = complete ? `translateX(${s.width}px)` : "translateX(0px)";
     s.under.style.transform = complete ? "translateX(0px)" : `translateX(${-0.28 * s.width}px)`;
     s.dim.style.opacity = complete ? "0" : "0.22";
   });
   setTimeout(() => {
+    if (epoch !== swipeEpoch) return;
     if (complete && s.mode === "page") {
       /* the slide already happened — render() lands the previous page without
          re-animating and clears the layers once the new view has painted */
@@ -389,15 +436,19 @@ function endSwipe(cancelled) {
   const device = $("#device");
   device.addEventListener("touchstart", (e) => {
     if (swipeBusy || swipe || e.touches.length !== 1) return;
-    if (e.target.closest("input, textarea, select")) return;
+    if (e.target.closest("input, textarea, select, button, a, [role=button]")) return;
     const target = swipeTarget();
     if (!target) return;
     const t = e.touches[0];
+    if (t.clientX - device.getBoundingClientRect().left > 32) return;
+    // Claim the edge so Safari cannot also perform a native history pop.
+    if (e.cancelable) e.preventDefault();
     swipe = Object.assign(target, { x0: t.clientX, y0: t.clientY, engaged: false, dead: false, dx: 0, samples: [[t.clientX, performance.now()]] });
-  }, { passive: true });
+  }, { passive: false });
   device.addEventListener("touchmove", (e) => {
     const s = swipe;
     if (!s || s.dead) return;
+    if (e.touches.length !== 1) { endSwipe(true); return; }
     const t = e.touches[0];
     const dx = t.clientX - s.x0, dy = t.clientY - s.y0;
     if (!s.engaged) {
@@ -433,8 +484,74 @@ function feedItems() {
   return (state.feedTab === "discover" ? discoveries : studies);
 }
 
-function mountReels(strip, items, startIdx) {
-  let liveIdx = -1, liveSince = 0;
+function reelShell(item, i) {
+  return `<article class="reel" data-genre="${esc(item.genre)}" data-id="${esc(item.id)}" data-i="${i}" aria-label="Reel ${i + 1}"><div class="reel-inner"></div></article>`;
+}
+function playReel(video) {
+  video.play().catch((error) => {
+    // Browsers may require a gesture before audible autoplay. Keep the
+    // session preference and retry sound on the next interaction.
+    if (error.name === "NotAllowedError" && state.sound && video.closest(".reel.live")) {
+      video.muted = true;
+      video.play().catch(() => {});
+    }
+  });
+}
+function mountReels(strip, items, startIdx, options = {}) {
+  let liveIdx = -1, liveSince = 0, disposed = false, suspended = false;
+  let loading = false, retryTimer = null;
+  const status = strip.parentElement.querySelector(".feed-status");
+  const showStatus = (message) => {
+    if (!status) return;
+    status.hidden = !message;
+    status.querySelector("span").textContent = message;
+  };
+  const loadMore = async () => {
+    if (!options.loadMore || loading || disposed || suspended) return;
+    clearTimeout(retryTimer);
+    loading = true;
+    showStatus("Finding more posts…");
+    try {
+      const batch = await options.loadMore(items.map((it) => it.id));
+      if (disposed || suspended) return;
+      const ids = new Set(items.map((it) => it.id));
+      const fresh = batch.filter((it) => !ids.has(it.id) && ids.add(it.id));
+      // Keep 30 previous cards and a maximum of 90 metadata/DOM entries.
+      const trim = items.length + fresh.length > 90 ? Math.max(0, liveIdx - 30) : 0;
+      if (trim) {
+        reportDwell(liveIdx);
+        const offset = strip.scrollTop;
+        for (let i = 0; i < trim; i++) { observer.unobserve(strip.firstElementChild); strip.firstElementChild.remove(); }
+        items.splice(0, trim); liveIdx -= trim;
+        strip.scrollTop = Math.max(0, offset - trim * strip.clientHeight);
+      }
+      const offset = items.length;
+      items.push(...fresh);
+      strip.insertAdjacentHTML("beforeend", fresh.map((it, i) => reelShell(it, offset + i)).join(""));
+      urlIndex.clear();
+      items.forEach((it, i) => { if (it.video) urlIndex.set(resolved(it), i); });
+      [...strip.children].forEach((r, i) => {
+        r.dataset.i = i; r.setAttribute("aria-label", `Reel ${i + 1}`); observer.observe(r);
+      });
+      if (fresh.length) {
+        showStatus(""); pf.lastIdx = -1;
+        if (!suspended) {
+          const idx = Math.max(0, liveIdx);
+          fillNeighborhood(idx);
+          if (strip.children[idx]) setLive(strip.children[idx]);
+        }
+      } else {
+        showStatus("You're up to date. Checking for fresh posts…");
+      }
+      if (strip.id === "reels") state.reelIndex = Math.max(0, liveIdx);
+    } catch {
+      if (!disposed) showStatus("Couldn't load more posts. Tap to retry.");
+    } finally {
+      loading = false;
+      if (!disposed && !suspended && liveIdx >= items.length - 6) retryTimer = setTimeout(loadMore, 30000);
+    }
+  };
+  if (status) status.addEventListener("click", loadMore);
   /* Instagram-style clip prefetch: previous 5 + next 5 clips are downloaded
      as real bytes into in-memory Blob URLs, and the <video> nodes play
      straight from memory. iOS WebKit's media loader does NOT reuse the HTTP
@@ -495,9 +612,21 @@ function mountReels(strip, items, startIdx) {
     fetch(url, { signal: ctrl.signal })
       .then(async (r) => {
         if (!r.ok) return;
-        const blob = await r.blob(); // clips are ~1–2MB — safe to hold whole
+        if (Number(r.headers.get("content-length")) > BLOB_MAX_BYTES) { ctrl.abort(); return; }
+        // Limit the in-flight download as well as retained blobs.
+        const reader = r.body.getReader(), chunks = [];
+        let bytes = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          bytes += value.byteLength;
+          if (bytes > BLOB_MAX_BYTES) { await reader.cancel(); return; }
+          chunks.push(value);
+        }
+        const blob = new Blob(chunks, { type: r.headers.get("content-type") || "video/mp4" }); // clips are ~1–2MB — safe to hold whole
         if (ctrl.signal.aborted) return;
         blobStore.set(url, { objUrl: URL.createObjectURL(blob), bytes: blob.size });
+        evictBlobs(Math.max(0, liveIdx));
         applyBlob(url);
       })
       .catch(() => {})
@@ -508,7 +637,7 @@ function mountReels(strip, items, startIdx) {
     pf.lastIdx = idx;
     const token = ++pf.token;
     const start = () => {
-      if (token !== pf.token) return;
+      if (token !== pf.token || disposed || suspended) return;
       evictBlobs(idx);
       const q = [];
       for (let d = 1; d <= 5; d++) {
@@ -546,6 +675,7 @@ function mountReels(strip, items, startIdx) {
       c.width = w; c.height = h;
       c.getContext("2d").drawImage(v, 0, 0, w, h);
       posterCache.set(url, c.toDataURL("image/jpeg", 0.6));
+      while (posterCache.size > 40) posterCache.delete(posterCache.keys().next().value);
     } catch {}
   };
   const wireVideo = (v) => {
@@ -613,7 +743,11 @@ function mountReels(strip, items, startIdx) {
   };
   const setLive = (reelEl) => {
     const idx = [...strip.children].indexOf(reelEl);
-    if (idx !== liveIdx) { reportDwell(liveIdx); liveIdx = idx; liveSince = Date.now(); }
+    if (disposed || suspended || !reelEl) return;
+    if (idx !== liveIdx) {
+      reportDwell(liveIdx); liveIdx = idx; liveSince = Date.now();
+      api("/api/events", { body: { item_id: items[idx].id, kind: "impression" } }).catch(() => {});
+    }
     strip.querySelectorAll(".reel").forEach((r) => r.classList.toggle("live", r === reelEl));
     const device = $("#device");
     if (device) { const g = reelEl.dataset.genre; device.dataset.glow = g === "earn" ? "amber" : g === "attention" ? "lav" : "blue"; }
@@ -628,7 +762,7 @@ function mountReels(strip, items, startIdx) {
           v.src = b.objUrl;
           if (t > 0.35) v.addEventListener("loadedmetadata", () => { try { v.currentTime = t; } catch {} }, { once: true });
         }
-        v.muted = !state.sound; v.play().catch(() => {});
+        v.muted = !state.sound; playReel(v);
       }
       else { v.pause(); v.muted = true; }
     });
@@ -673,8 +807,10 @@ function mountReels(strip, items, startIdx) {
       if (v) v.preload = (i === idx || (v.getAttribute("src") || "").startsWith("blob:")) ? "auto" : "none";
     });
     schedulePrefetch(idx);
+    if (idx >= items.length - 6) loadMore();
   };
   const observer = new IntersectionObserver((entries) => {
+    if (disposed || suspended) return;
     for (const en of entries) {
       if (en.isIntersecting && en.intersectionRatio >= 0.55) {
         const idx = [...strip.children].indexOf(en.target);
@@ -695,7 +831,10 @@ function mountReels(strip, items, startIdx) {
        shift the whole device when returning to the reels tab */
     strip.scrollTop = strip.clientHeight * idx;
   }
+  if (!first) loadMore();
   const teardown = () => {
+    disposed = true; clearTimeout(retryTimer);
+    if (status) status.removeEventListener("click", loadMore);
     reportDwell(liveIdx); observer.disconnect(); abortPrefetch();
     for (const v of videoPool) { try { v.pause(); v.removeAttribute("src"); v.load(); v.remove(); } catch {} }
     videoPool.length = 0;
@@ -707,17 +846,20 @@ function mountReels(strip, items, startIdx) {
      Detached DOM loses its scroll offset, so save and restore it explicitly. */
   let savedScroll = 0;
   teardown.suspend = () => {
+    suspended = true; clearTimeout(retryTimer);
     reportDwell(liveIdx); liveSince = 0;
     abortPrefetch(); pf.lastIdx = -1;
     savedScroll = strip.scrollTop;
     strip.querySelectorAll("video").forEach((v) => v.pause());
   };
   teardown.resume = () => {
+    suspended = false;
     strip.scrollTop = savedScroll;
     const idx = Math.min(Math.round(savedScroll / (strip.clientHeight || 1)), strip.children.length - 1);
     const reelEl = strip.children[idx];
     if (reelEl) { fillNeighborhood(idx); setLive(reelEl); }
     liveSince = Date.now();
+    if (!reelEl) loadMore();
   };
   return teardown;
 }
@@ -740,14 +882,15 @@ routes.feed = async (el) => {
   <div class="ptr-zone" id="ptr-zone">
     <div class="ptr-indicator" id="ptr-indicator" aria-hidden="true"><span class="ptr-ring"></span><span class="ptr-label">Pull for fresh picks</span></div>
     <div class="reels" id="reels" tabindex="-1" aria-label="Study reels, swipe vertically">
-      ${items.map((item, i) => `
-      <article class="reel" data-genre="${item.genre}" data-id="${item.id}" data-i="${i}" aria-label="Reel ${i + 1} of ${items.length}">
-        <div class="reel-inner"></div>
-      </article>`).join("")}
+      ${items.map(reelShell).join("")}
     </div>
+    <button class="feed-status" type="button" hidden aria-live="polite"><span></span></button>
   </div>`;
+  const tab = state.feedTab;
   const strip = el.querySelector("#reels");
-  reelTeardown = mountReels(strip, items, state.reelIndex);
+  reelTeardown = mountReels(strip, items, state.reelIndex, {
+    loadMore: (ids) => api(`/api/feed?tab=${tab}&exclude=${encodeURIComponent(ids.join(","))}`),
+  });
   /* Stable Instagram-style header: the wordmark bar is a fixed overlay in the feed
      so the reels never resize. The wordmark + tabs collapse once you leave the
      topmost reel and stay collapsed while you move between reels; they only slide
@@ -772,9 +915,9 @@ routes.feed = async (el) => {
   reelTeardown.suspend = () => { device.classList.remove("feed-scrolled", "feed-mode"); baseTeardown.suspend(); };
   reelTeardown.resume = () => { device.classList.add("feed-mode"); baseTeardown.resume(); onReelScroll(); };
   attachPullToRefresh(el.querySelector("#ptr-zone"), strip, async () => {
-    const tab = state.feedTab === "discover" ? "discover" : "gold";
     const fresh = await api(`/api/feed?tab=${tab}&refresh=1`);
-    if (state.feedTab === "discover") discoveries = fresh; else studies = fresh;
+    if (!strip.isConnected || strip !== $("#reels") || state.feedTab !== tab) return;
+    if (tab === "discover") discoveries = fresh; else studies = fresh;
     state.reelIndex = 0;
     render();
     toast("Fresh picks, matched to you.");
@@ -1319,7 +1462,8 @@ function gameFacts(kind, spec) {
 }
 routes["game/:id"] = async (el, id) => {
   let d;
-  try { d = await api(`/api/games/${id}`); } catch (e) { toast(e.message); go("#/play"); return; }
+  try { d = await api(`/api/games/${id}`); } catch (e) { if (!el.isConnected) return; toast(e.message); go("#/play"); return; }
+  if (!el.isConnected) return;
   if (d.status === "draft" && d.spec) { setPendingGame({ kind: d.kind, spec: d.spec, id: d.id }); go("#/game-preview"); return; }
   if (d.status !== "published") { go(`#/game-queued/${id}`); return; }
   const spec = d.spec || {};
@@ -1819,7 +1963,8 @@ routes.dashboard.tab = "profile";
 routes["responses/:id"] = async (el, id) => {
   el.innerHTML = `<div class="view" data-glow="blue">${topbar("responses")}<div class="empty">${icon("comment")}<p>Loading responses…</p></div></div>`;
   let d;
-  try { d = await api(`/api/responses/${id}`); } catch (e) { toast(e.message); go("#/dashboard"); return; }
+  try { d = await api(`/api/responses/${id}`); } catch (e) { if (!el.isConnected) return; toast(e.message); go("#/dashboard"); return; }
+  if (!el.isConnected) return;
   el.innerHTML = `
   <div class="view" data-glow="blue">
     ${topbar("responses")}
@@ -1858,7 +2003,8 @@ routes["responses/:id"].tab = "profile";
 routes["response/:id"] = async (el, id, rid) => {
   el.innerHTML = `<div class="view" data-glow="blue">${topbar("response")}<div class="empty">${icon("pulse")}<p>Loading response…</p></div></div>`;
   let r;
-  try { r = await api(`/api/response/${id}/${rid}`); } catch (e) { toast(e.message); go(`#/responses/${id}`); return; }
+  try { r = await api(`/api/response/${id}/${rid}`); } catch (e) { if (!el.isConnected) return; toast(e.message); go(`#/responses/${id}`); return; }
+  if (!el.isConnected) return;
   const reasonText = { consistency: "conflict with an earlier submission", attention: "missed the embedded gate", automation: "automated-response profile", speed: "under the human pace median", bot: "bot-likelihood model fired", review: "held for human review", paste: "external paste pattern" };
   const reasonFor = (k) => (r.reasons || []).includes(k);
   const pq = r.per_question || [];
@@ -1940,7 +2086,8 @@ function distBars(options, dist, total) {
 routes["aggregate/:id"] = async (el, id) => {
   el.innerHTML = `<div class="view" data-glow="lav">${topbar("aggregate data")}<div class="empty">${icon("pulse")}<p>Loading aggregates…</p></div></div>`;
   let d;
-  try { d = await api(`/api/aggregate/${id}`); } catch (e) { toast(e.message); go(`#/responses/${id}`); return; }
+  try { d = await api(`/api/aggregate/${id}`); } catch (e) { if (!el.isConnected) return; toast(e.message); go(`#/responses/${id}`); return; }
+  if (!el.isConnected) return;
   const pace = d.pace || [];
   const medianTotal = pace.length ? pace.slice().sort((a, b) => a - b)[Math.floor(pace.length / 2)] : 0;
   el.innerHTML = `
@@ -2746,7 +2893,8 @@ routes["game-preview"].tab = "play";
 routes["game-plays/:id"] = async (el, id) => {
   el.innerHTML = `<div class="view" data-glow="blue">${topbar("game responses")}<div class="empty">${icon("pulse")}<p>Loading…</p></div></div>`;
   let d;
-  try { d = await api(`/api/games/${id}/plays`); } catch (e) { toast(e.message); go("#/dashboard"); return; }
+  try { d = await api(`/api/games/${id}/plays`); } catch (e) { if (!el.isConnected) return; toast(e.message); go("#/dashboard"); return; }
+  if (!el.isConnected) return;
   el.innerHTML = `
   <div class="view" data-glow="blue">
     ${topbar("game responses")}
@@ -2785,7 +2933,8 @@ routes["game-plays/:id"].tab = "profile";
 routes["game-play/:id"] = async (el, id, pid) => {
   el.innerHTML = `<div class="view" data-glow="blue">${topbar("response")}<div class="empty">${icon("pulse")}<p>Loading response…</p></div></div>`;
   let r;
-  try { r = await api(`/api/games/${id}/plays/${pid}`); } catch (e) { toast(e.message); go(`#/game-plays/${id}`); return; }
+  try { r = await api(`/api/games/${id}/plays/${pid}`); } catch (e) { if (!el.isConnected) return; toast(e.message); go(`#/game-plays/${id}`); return; }
+  if (!el.isConnected) return;
   const reasonText = { consistency: "conflict with an earlier submission", attention: "missed a decision beat or the pace gate", automation: "automated-response profile", speed: "under the human pace median", bot: "bot-likelihood model fired", review: "held for human review", paste: "external paste pattern" };
   const reasonFor = (k) => (r.reasons || []).includes(k);
   const pq = r.per_question || [];
@@ -2847,7 +2996,8 @@ routes["game-play/:id"].tab = "profile";
 routes["game-aggregate/:id"] = async (el, id) => {
   el.innerHTML = `<div class="view" data-glow="lav">${topbar("aggregate data")}<div class="empty">${icon("pulse")}<p>Loading aggregates…</p></div></div>`;
   let d;
-  try { d = await api(`/api/games/${id}/aggregate`); } catch (e) { toast(e.message); go(`#/game-plays/${id}`); return; }
+  try { d = await api(`/api/games/${id}/aggregate`); } catch (e) { if (!el.isConnected) return; toast(e.message); go(`#/game-plays/${id}`); return; }
+  if (!el.isConnected) return;
   const pace = d.pace || [];
   const medianTotal = pace.length ? pace.slice().sort((a, b) => a - b)[Math.floor(pace.length / 2)] : 0;
   el.innerHTML = `
@@ -3276,8 +3426,9 @@ document.addEventListener("click", (e) => {
   if (tabBtn) {
     const want = tabBtn.dataset.tab;
     if (want !== state.feedTab) {
+      state.feedPositions[state.feedTab] = state.reelIndex;
       state.feedTab = want;
-      state.reelIndex = 0;
+      state.reelIndex = state.feedPositions[want] || 0;
       render();
     }
     return;
@@ -3353,7 +3504,7 @@ document.addEventListener("click", (e) => {
         btn.innerHTML = `<svg class="ic" aria-hidden="true"><use href="#i-${state.sound ? "speaker" : "speaker-off"}"/></svg>`;
       }
       const live = document.querySelector(".reel.live video");
-      if (live) live.muted = !state.sound;
+      if (live) { live.muted = !state.sound; playReel(live); }
       toast(state.sound ? "Sound on for the reel you are watching." : "Sound muted.");
       break;
     }
@@ -3618,7 +3769,16 @@ function openCredits() {
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 addEventListener("load", () => scrollTo(0, 0));
 
+addEventListener("popstate", () => {
+  const trail = history.state?.earnest?.trail;
+  navDirection = trail && trail.length < navStack.length ? "back" : "none";
+  // Hash history emits hashchange next, which performs the single render.
+});
 addEventListener("hashchange", render);
+for (const event of ["touchend", "click"]) document.addEventListener(event, () => {
+  if (!state.sound) return;
+  document.querySelectorAll(".reel.live video").forEach((video) => { video.muted = false; playReel(video); });
+}, { passive: true, capture: true });
 addEventListener("DOMContentLoaded", async () => {
   /* night-theme tokens live in [data-mode="dark"]; keep the attribute in sync
      with the .theme-dark class across every render path (push, tab, async) */
@@ -3626,11 +3786,7 @@ addEventListener("DOMContentLoaded", async () => {
   new MutationObserver(syncDark).observe($("#device"), { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
   syncDark();
   document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => {
-    navDirection = "tab";
-    const target = `#/${b.dataset.nav}`;
-    /* Re-tapping the current tab must still respond: a same-hash assignment
-       fires no hashchange, which made a stuck screen feel dead. */
-    if (location.hash === target) render(); else location.hash = target;
+    switchTab(`#/${b.dataset.nav}`);
   }));
   document.addEventListener("keydown", (e) => {
     if ((e.key === "Enter" || e.key === " ") && e.target.matches("[role=button][data-go]")) {

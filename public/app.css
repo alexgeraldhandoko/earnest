@@ -1132,3 +1132,9 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .gd-actionbar .amt { font-family: var(--font-outlier); font-weight: 500; color: var(--color-money); }
 .game-empty { padding: var(--space-md); display: flex; gap: var(--space-sm); align-items: flex-start; font-size: var(--text-sm); color: var(--color-ink-2); line-height: 1.55; }
 .game-empty .ic { width: 20px; height: 20px; flex: none; stroke: var(--color-accent); margin-top: 2px; }
+
+/* Feed pagination status stays outside the snap strip and remains tappable
+   when the eligible pool or the connection is temporarily exhausted. */
+.feed-status { position: absolute; bottom: 12px; left: 10%; width: 80%; z-index: 5; border: 0; border-radius: var(--radius-card); padding: 12px; color: var(--color-ink); background: var(--color-paper); font: inherit; font-size: var(--text-sm); box-shadow: var(--shadow-card); }
+.feed-status[hidden] { display: none; }
+.device { overscroll-behavior-x: none; }

@@ -12,7 +12,7 @@ const { TOPICS } = require("./topics");
 const W = { content: 0.45, cf: 0.20, wilson: 0.15, fresh: 0.10, type: 0.10, neg: 0.50, follow: 0.06 };
 const EMA_ALPHA = 0.10, EXPLICIT_TAU = 30, EXPLICIT_FLOOR = 0.05;
 const HALF_LIFE = { study: 168, post: 72 };           // hours — research ≠ breaking news
-const SEEN_WINDOW_DAYS = 14, MMR_LAMBDA = 0.7;
+const SEEN_WINDOW_HOURS = 72, MMR_LAMBDA = 0.7;
 const EVENT_W = { dwell: 0.5, watch: 1.0, complete: 2.0, heart: 1.5, repost: 3.0, follow: 4.0, skip: -1.0, not_interested: -8.0 };
 
 const items = new Map();      // id → {id,type,vec,tags,researcher,published,genre}
@@ -172,39 +172,20 @@ function scoreItem(userId, item, u, sim, follows) {
   return s;
 }
 
-/* Serve a ranked batch. refresh=true is the pull-to-refresh path: unseen
-   items first, then — once the unseen pool runs dry — the LEAST-recently-seen
-   items rotate back in (time-decaying seen penalty), so every pull surfaces a
-   fresh batch matched to the user's vector instead of the same top 30.
-   Exploration injected, impressions logged so the next pull is fresh. */
-function rankFeed(userId, type, { limit = 30, refresh = false } = {}) {
+/* Batches are recommendations, not impressions. Only a reel actually entering
+   the viewport starts its 72-hour exclusion; queued clips stay eligible on a
+   later session. The client excludes its current bounded window when paging. */
+function rankFeed(userId, type, { limit = 30, refresh = false, exclude = [] } = {}) {
   if (!items.size) loadItems();
+  limit = Math.max(1, Math.min(40, Math.floor(Number(limit) || 30)));
   const u = userVector(userId);
   const sim = coengage();
   const follows = new Set(q.all("SELECT researcher_id FROM follows WHERE user_id=?", userId).map((r) => r.researcher_id));
-  const seen = new Map(q.all("SELECT item_id, ts FROM seen_items WHERE user_id=?", userId).map((r) => [r.item_id, Date.parse(r.ts.replace(" ", "T") + "Z")]));
-  let candidates = [...items.values()].filter((it) => it.type === type);
-  const unseen = candidates.filter((it) => !seen.has(it.id));
-  if (unseen.length >= limit) candidates = unseen;
-  let scored;
-  if (refresh) {
-    /* Two-tier rotation: unseen posts first (pure interest match); once the
-       unseen pool runs dry, seen posts return LEAST-recently-seen first, so
-       every pull is a new batch — never the same top 30 on repeat. Synthetic
-       scores keep the tiers strict; MMR still diversifies within each tier. */
-    const un = candidates.filter((it) => !seen.has(it.id))
-      .map((it) => ({ it, s: scoreItem(userId, it, u, sim, follows) }))
-      .sort((a, b) => b.s - a.s);
-    const floor = (un.length ? un[un.length - 1].s : 0) - 1;
-    const se = candidates.filter((it) => seen.has(it.id))
-      .map((it) => ({ it, s: scoreItem(userId, it, u, sim, follows), ts: seen.get(it.id) }))
-      .sort((a, b) => a.ts - b.ts || b.s - a.s)
-      .map((x, k) => ({ it: x.it, s: floor - k * 0.001 + x.s * 1e-6 }));
-    scored = un.concat(se);
-  } else {
-    scored = candidates.map((it) => ({ it, s: scoreItem(userId, it, u, sim, follows) + (seen.has(it.id) ? -0.15 : 0) }))
-      .sort((a, b) => b.s - a.s);
-  }
+  const seen = new Set(q.all("SELECT item_id FROM seen_items WHERE user_id=? AND ts > datetime('now', ?)", userId, `-${SEEN_WINDOW_HOURS} hours`).map((r) => r.item_id));
+  const excluded = new Set(exclude);
+  const candidates = [...items.values()].filter((it) => it.type === type && !seen.has(it.id) && !excluded.has(it.id));
+  const scored = candidates.map((it) => ({ it, s: scoreItem(userId, it, u, sim, follows) }))
+    .sort((a, b) => b.s - a.s);
   const top = scored.slice(0, Math.max(limit * 2, 60));
 
   /* MMR greedy diversity re-rank */
@@ -246,22 +227,24 @@ function rankFeed(userId, type, { limit = 30, refresh = false } = {}) {
   while (ei < explored.length) out.push(explored[ei++].it);
 
   const ids = out.slice(0, limit).map((it) => it.id);
-  logImpressions(userId, ids);
   return ids;
 }
 
 function logImpressions(userId, ids) {
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
-  for (const id of ids) {
+  for (const id of new Set(ids)) {
+    if (!items.has(id)) continue;
     q.run("INSERT INTO seen_items (user_id,item_id,ts) VALUES (?,?,?) ON CONFLICT(user_id,item_id) DO UPDATE SET ts=excluded.ts", userId, id, now);
     q.run("INSERT INTO item_stats (item_id,item_type,impressions) VALUES (?,?,1) ON CONFLICT(item_id) DO UPDATE SET impressions=impressions+1", id, items.get(id) ? items.get(id).type : "post");
     q.run("INSERT INTO feed_events (user_id,item_id,item_type,kind,value) VALUES (?,?,?,?,0)", userId, id, items.get(id) ? items.get(id).type : "post", "impression");
   }
-  q.run("DELETE FROM seen_items WHERE ts < datetime('now','-14 days')");
+  q.run("DELETE FROM seen_items WHERE ts <= datetime('now', ?)", `-${SEEN_WINDOW_HOURS} hours`);
 }
 
 /* Implicit feedback → EMA user-vector update (the "online training" step). */
 function event(userId, itemId, kind, value = 0) {
+  if (!items.size) loadItems();
+  if (kind === "impression") { logImpressions(userId, [itemId]); return; }
   const item = items.get(itemId);
   const w = EVENT_W[kind];
   if (w === undefined) return;
