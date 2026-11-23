@@ -35,3 +35,9 @@ workspace can ship.
   runtime via the Supabase mirror. Do not commit .env or token files.
 - Game generation uses GEN_PROVIDER=api with the LLM key from the mirrored
   config (the local QwenWork agent worker is not available on Render).
+- Instagram DM responder: the frozen page xuw6xcjq keeps the registered OAuth
+  callback + Outstand webhook. Render borrows its access tokens via the
+  capture proxy (config `qw_token_source`, `qw_self_base`) and polls
+  Outstand for inbound DMs; the sibling is sunk via its `api_base` config so
+  it never double-answers. Outstand/IG keys live in the mirrored config
+  (`outstand_api_key`, `ig_poll_token`, `ig_signing_secret`), never in git.
