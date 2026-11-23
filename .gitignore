@@ -1,0 +1,12 @@
+node_modules/
+.env
+*.log
+.DS_Store
+data/*.db
+data/*.db-wal
+data/*.db-shm
+server/*.env
+server/igwebhook-config.json
+server/seed-data/upload-token.json
+server/seed-data/cloud-migrate.json
+public/videos/real/*.mp4

@@ -1,0 +1,52 @@
+:root {
+  color-scheme: light;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.75rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.2rem; --text-xl: 1.44rem; --text-2xl: 1.728rem; --text-3xl: 2.074rem;
+  --text-display-s: 1.44rem; --text-display: 1.728rem; --text-section: 1.2rem; --text-title: 1rem; --text-lead: 1rem;
+  --text-md-lg: 1.1rem; --text-lg-xl: 1.3rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
+  --color-error: oklch(52% 0.19 27); --color-success: oklch(50% 0.12 150);
+  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+
+  /* EARNest v2 · specimen light — white lab paper, one pool of genre light per specimen */
+  --color-paper: oklch(99% 0.002 250);
+  --color-paper-2: oklch(97.2% 0.005 252);
+  --color-paper-3: oklch(94.5% 0.008 254);
+  --color-ink: oklch(24% 0.02 258);
+  --color-ink-2: oklch(38% 0.022 256);
+  --color-muted: oklch(52% 0.02 256);
+  --color-rule: oklch(91% 0.008 254);
+  --color-accent: oklch(50% 0.14 250);
+  --color-accent-deep: oklch(44% 0.14 250);
+  --color-accent-soft: oklch(95% 0.03 248);
+  --color-accent-ink: oklch(99% 0.002 250);
+  --color-earn: oklch(76% 0.12 66);
+  --color-earn-deep: oklch(48% 0.13 52);
+  --color-earn-soft: oklch(96% 0.03 70);
+  --color-money: oklch(80% 0.12 155);
+  --color-money-deep: oklch(46% 0.11 155);
+  --color-money-soft: oklch(95% 0.04 155);
+  --color-lav: oklch(95% 0.025 300);
+  --color-lav-deep: oklch(46% 0.12 300);
+  --color-focus: oklch(56% 0.15 250);
+  --color-track: oklch(24% 0.02 258 / 0.1);
+  --color-glow-blue: oklch(87% 0.07 248 / 0.6);
+  --color-glow-lav: oklch(89% 0.055 300 / 0.5);
+  --color-glow-amber: oklch(92% 0.06 78 / 0.55);
+  --color-scrim: oklch(24% 0.02 258 / 0.4);
+  --color-grid-shade: oklch(20% 0.02 258 / 0.82);
+  --color-glass: oklch(99% 0.002 250 / 0.82);
+  --font-display: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-outlier: "IBM Plex Mono", ui-monospace, monospace;
+  --radius-card: 20px; --radius-stock: 14px; --radius-input: 12px; --radius-pill: 999px;
+  --rule-hair: 1px;
+  --shadow-card: 0 1px 2px oklch(24% 0.02 258 / 0.04), 0 8px 24px -12px oklch(24% 0.02 258 / 0.12);
+  --shadow-float: 0 2px 6px oklch(24% 0.02 258 / 0.06), 0 16px 40px -16px oklch(24% 0.02 258 / 0.18);
+  --shadow-sheet: 0 -24px 48px -24px oklch(24% 0.02 258 / 0.25);
+  --shadow-ink: 0 8px 20px -8px oklch(24% 0.02 258 / 0.5);
+  --tracking-display: -0.02em;
+  --display-weight: 700;
+}

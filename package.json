@@ -1,0 +1,11 @@
+{
+  "name": "earnest-app",
+  "version": "2.1.0",
+  "private": true,
+  "description": "EARNest: a gamified research platform. Full-stack: Node.js + SQLite backend, specimen-light frontend.",
+  "engines": { "node": ">=22.5.0" },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  }
+}

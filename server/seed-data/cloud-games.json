@@ -1,0 +1,670 @@
+{
+ "games": [
+  {
+   "id": "g-mv-01",
+   "researcher_id": "wang-ming",
+   "kind": "story",
+   "reward_cents": 55,
+   "created_at": "2026-11-20T09:00:00Z",
+   "plays": 0,
+   "provider": "qwenwork",
+   "model": "QwenWork agent",
+   "status": "published",
+   "prompt": "{\"research_context\":\"How new students respond to peer pressure to smoke when they want to belong — what they say, what they do, and what actually stops them joining in.\"}",
+   "spec": {
+    "kind": "story",
+    "title": "The New Kid",
+    "headline": "A new school, a pack behind the gym. What do you do to belong?",
+    "premise": "First week at a new school. At lunch, the group you want to join heads behind the gym — and Dani offers you a cigarette to prove you fit in.",
+    "study": {
+     "construct": "Peer pressure, smoking and belonging",
+     "context": "How new students respond to peer pressure to smoke when they want to belong — what they say, what they do, and what actually stops them joining in.",
+     "why": "Your choices show the real cost of fitting in, and the words people actually use to refuse.",
+     "blurb": "Tell us what you'd really do when the group you want to join offers a cigarette. Your answers reveal the real cost of fitting in — and the refusal words that actually work."
+    },
+    "world": {
+     "setting": "school",
+     "time": "day",
+     "mood": "warm, charged"
+    },
+    "characters": [
+     {
+      "id": "c1",
+      "name": "Dani",
+      "role": "Popular classmate",
+      "personality": "charming, pushy",
+      "look": "Teal hoodie, black jeans, short curly hair, red cap worn backwards.",
+      "colors": {
+       "robe": "#f2a08c",
+       "accent": "#7fd4c1"
+      },
+      "expressions": [
+       "neutral",
+       "happy",
+       "thinking",
+       "worried"
+      ],
+      "tap": {
+       "lines": [
+        "Ha! You're alright, new kid.",
+        "Behind the gym at lunch. You know where to find us.",
+        "Don't tell the teachers I'm friendly."
+       ]
+      }
+     },
+     {
+      "id": "c2",
+      "name": "Sam",
+      "role": "Another new student",
+      "personality": "quiet, steady",
+      "look": "Mustard beanie, round glasses, oversized blue jumper.",
+      "colors": {
+       "robe": "#8fb8e8",
+       "accent": "#f2d49b"
+      },
+      "expressions": [
+       "neutral",
+       "happy",
+       "thinking",
+       "worried"
+      ],
+      "tap": {
+       "lines": [
+        "Hey. The wall's a good spot, actually.",
+        "I saved you a seat. Metaphorically.",
+        "Two days of quiet lunches. Worth it, mostly."
+       ]
+      }
+     }
+    ],
+    "scenes": [
+     {
+      "id": "s1",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "Hey — you're the new kid, right? We're heading behind the gym at lunch. You should come. Everyone's there."
+     },
+     {
+      "id": "s2",
+      "character": "c1",
+      "expression": "happy",
+      "text": "Relax. First week's the hardest. After this you're basically one of us."
+     },
+     {
+      "id": "s3",
+      "character": "c1",
+      "expression": "thinking",
+      "text": "Behind the gym, Dani pulls out a pack and offers you one. 'Everyone here smokes. It's how we hang out.'",
+      "input": {
+       "type": "choice",
+       "question": "The pack is in your face. What do you do?",
+       "options": [
+        "Take it — I don't want to stand out",
+        "Say no thanks and stay anyway",
+        "Make an excuse and leave",
+        "Ask why they all smoke"
+       ]
+      }
+     },
+     {
+      "id": "s4",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "Interesting. Most people say they'd refuse — then take it anyway. The pack moves faster than the opinions."
+     },
+     {
+      "id": "s5",
+      "character": "c1",
+      "expression": "thinking",
+      "text": "Dani holds the lighter out, laughing. 'Come on, one drag. Don't be the weird new kid.' The circle goes quiet and waits.",
+      "input": {
+       "type": "choice",
+       "timeLimitMs": 12000,
+       "question": "The circle is waiting. What's your move?",
+       "options": [
+        "Take one drag to end the moment",
+        "Say 'I'm good' and hold the silence",
+        "Turn it into a joke and pass it on",
+        "Walk away mid-laugh"
+       ]
+      }
+     },
+     {
+      "id": "s6",
+      "character": "c1",
+      "expression": "happy",
+      "text": "No judgment. That pause you just felt? That's the whole study. Belonging has a price tag, and everyone pays it differently."
+     },
+     {
+      "id": "s7",
+      "character": "c1",
+      "expression": "thinking",
+      "text": "So be honest with me — the researchers only get one shot at the truth.",
+      "input": {
+       "type": "choice",
+       "question": "If the group you wanted to join did something you disliked, what would actually stop you joining in?",
+       "options": [
+        "Fear of being left out",
+        "My own rules about it",
+        "What my family would think",
+        "Nothing — I'd probably join in"
+       ]
+      }
+     },
+     {
+      "id": "s8",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "Last thing from me. Sam's over by the wall — they said no last week. Ask them how it went. It's not the story you'd expect."
+     },
+     {
+      "id": "s9",
+      "character": "c2",
+      "expression": "neutral",
+      "text": "Hey. You survived the behind-the-gym test, huh. I'm Sam. Also new. Also offered the pack."
+     },
+     {
+      "id": "s10",
+      "character": "c2",
+      "expression": "worried",
+      "text": "I said no. And then lunch was… quiet. Nobody sat with me for two days. That's the part nobody tells you about refusing."
+     },
+     {
+      "id": "s11",
+      "character": "c2",
+      "expression": "thinking",
+      "text": "So here's the one I actually want to know.",
+      "input": {
+       "type": "text",
+       "question": "What would you actually say to refuse — out loud, in your own words — without losing the group?",
+       "placeholder": "Your exact words…"
+      }
+     },
+     {
+      "id": "s12",
+      "character": "c2",
+      "expression": "neutral",
+      "text": "See, that's a real answer. The researchers collect these because scripts like yours are what people actually use."
+     },
+     {
+      "id": "s13",
+      "character": "c2",
+      "expression": "thinking",
+      "text": "Two days later, Dani invites you again — this time just to sit, no pack.",
+      "input": {
+       "type": "choice",
+       "question": "Do you go?",
+       "options": [
+        "Go — sitting together is the point",
+        "Go, but only if Sam comes too",
+        "Skip it — I don't trust the invite",
+        "Ask Sam what they'd do first"
+       ]
+      }
+     },
+     {
+      "id": "s14",
+      "character": "c2",
+      "expression": "happy",
+      "text": "Whatever you picked, that's how belonging gets negotiated — one lunch at a time. Thanks for being honest. See you at the wall tomorrow."
+     }
+    ],
+    "closing": "The bell rings. The pack stays behind the gym — but the question of what we do to belong follows you to class. Your answers are now part of the research.",
+    "logo": "/story-art/g-mv-01/logo.svg",
+    "contextPages": [
+     "First week at a new school. You're still eating lunch alone, and the group you want to join has noticed you. Today, Dani waves you over — behind the gym, where the teachers don't look.",
+     "Behind the gym, belonging has a price: a cigarette, offered in front of everyone. What you take, say or refuse is watched by the whole circle — and by Sam, another new kid who already said no.",
+     "Walk up to the glowing person and tap to talk. Answer honestly — there are no right answers. Your choices become real research on peer pressure, and your words may help the next new kid say no."
+    ]
+   },
+   "logo": "/story-art/g-mv-01/logo.svg",
+   "poster": "/story-art/g-mv-01/poster.svg",
+   "title": "The New Kid",
+   "premise": "First week at a new school. At lunch, the group you want to join heads behind the gym — and Dani offers you a cigarette to prove you fit in."
+  },
+  {
+   "id": "g-mv-02",
+   "researcher_id": "wang-ming",
+   "kind": "story",
+   "reward_cents": 50,
+   "created_at": "2026-11-21T09:00:00Z",
+   "plays": 0,
+   "provider": "qwenwork",
+   "model": "QwenWork agent",
+   "status": "published",
+   "prompt": "{\"research_context\":\"When witnesses of public harassment intervene versus freeze — the bystander effect on a metro platform, and what makes stepping in more likely.\"}",
+   "spec": {
+    "kind": "story",
+    "title": "Last Train",
+    "headline": "Nine witnesses, one platform. Are you the one who steps in?",
+    "premise": "Late night on the metro platform. A man is shouting at a woman by the platform edge, and nine people are suddenly very interested in their phones.",
+    "study": {
+     "construct": "Bystander intervention under pressure",
+     "context": "When witnesses of public harassment intervene versus freeze — the bystander effect on a metro platform, and what makes stepping in more likely.",
+     "why": "Your first moves and your one sentence show what actually turns a witness into a helper.",
+     "blurb": "Tell us whether you'd step in when a stranger is harassed in public. Your choices and your one sentence help design bystander training that turns witnesses into helpers."
+    },
+    "world": {
+     "setting": "metro",
+     "time": "night",
+     "mood": "quiet blue tension"
+    },
+    "characters": [
+     {
+      "id": "c1",
+      "name": "Priya",
+      "role": "Fellow commuter",
+      "personality": "sharp, uneasy",
+      "look": "Purple coat, hair in a bun, tote bag, tired eyes.",
+      "colors": {
+       "robe": "#b8a8e0",
+       "accent": "#f2d49b"
+      },
+      "expressions": [
+       "neutral",
+       "happy",
+       "thinking",
+       "worried"
+      ],
+      "tap": {
+       "lines": [
+        "Still here. Still watching.",
+        "The pillar's a good spot. You can see everything.",
+        "Nine of us. Remember that number."
+       ]
+      }
+     },
+     {
+      "id": "c2",
+      "name": "Marcus",
+      "role": "Station attendant",
+      "personality": "calm, procedural",
+      "look": "Teal uniform vest, cap, radio on the shoulder.",
+      "colors": {
+       "robe": "#7fd4c1",
+       "accent": "#f2a08c"
+      },
+      "expressions": [
+       "neutral",
+       "happy",
+       "thinking",
+       "worried"
+      ],
+      "tap": {
+       "lines": [
+        "Evening. All quiet on the platform.",
+        "One calm sentence. That's the whole trick.",
+        "Six minutes to the next train. Breathe."
+       ]
+      }
+     }
+    ],
+    "scenes": [
+     {
+      "id": "s1",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "Psst. Over here, by the pillar. You saw it too, right? The man at the platform edge, shouting at that woman."
+     },
+     {
+      "id": "s2",
+      "character": "c1",
+      "expression": "worried",
+      "text": "She's not answering. He's getting closer. There are nine of us on this platform and everyone is suddenly very interested in their phones."
+     },
+     {
+      "id": "s3",
+      "character": "c1",
+      "expression": "thinking",
+      "text": "The train is four minutes out. So tell me — and be honest.",
+      "input": {
+       "type": "choice",
+       "question": "What's your first move?",
+       "options": [
+        "Stand near her and start a normal conversation",
+        "Call the station attendant",
+        "Film it from a distance as evidence",
+        "Wait — someone else will surely act"
+       ]
+      }
+     },
+     {
+      "id": "s4",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "Nine people, nine 'someone else's. That's the effect the researchers study — the more witnesses, the smaller each person's share of acting feels."
+     },
+     {
+      "id": "s5",
+      "character": "c1",
+      "expression": "worried",
+      "text": "He just grabbed her bag strap. She flinches. The platform is quiet.",
+      "input": {
+       "type": "choice",
+       "timeLimitMs": 10000,
+       "question": "You have seconds. What do you do?",
+       "options": [
+        "Step in and speak up now",
+        "Pull the emergency intercom",
+        "Move closer and catch her eye",
+        "Keep waiting for staff"
+       ]
+      }
+     },
+     {
+      "id": "s6",
+      "character": "c1",
+      "expression": "thinking",
+      "text": "Whatever you chose, notice what your body did first — the step forward or the step back. That's the data."
+     },
+     {
+      "id": "s7",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "Marcus is coming down the stairs. He's dealt with this a hundred times. Ask him what actually works."
+     },
+     {
+      "id": "s8",
+      "character": "c2",
+      "expression": "neutral",
+      "text": "Evening. I saw the whole thing from the booth. You know what stops it fastest? Not shouting. One calm sentence and a witness standing close."
+     },
+     {
+      "id": "s9",
+      "character": "c2",
+      "expression": "thinking",
+      "text": "So from what you've seen tonight —",
+      "input": {
+       "type": "choice",
+       "question": "What would make YOU more likely to step in?",
+       "options": [
+        "Knowing exactly what to say",
+        "One other person backing me",
+        "Staff visibly nearby",
+        "Knowing I can't get in trouble"
+       ]
+      }
+     },
+     {
+      "id": "s10",
+      "character": "c2",
+      "expression": "neutral",
+      "text": "Training scripts exist for this. 'Hey, are you okay?' — asked to her, not him. It gives her an exit and him an audience that's paying attention."
+     },
+     {
+      "id": "s11",
+      "character": "c2",
+      "expression": "thinking",
+      "text": "Now yours. No script, no poster. Just you.",
+      "input": {
+       "type": "text",
+       "question": "Write the one sentence you'd actually say — to her, or to him — if this happened tomorrow.",
+       "placeholder": "Your one sentence…"
+      }
+     },
+     {
+      "id": "s12",
+      "character": "c2",
+      "expression": "happy",
+      "text": "That's going in the study. Real sentences from real people beat any poster on the wall."
+     },
+     {
+      "id": "s13",
+      "character": "c2",
+      "expression": "thinking",
+      "text": "Last one. The train's here. She boards your car. He boards too.",
+      "input": {
+       "type": "choice",
+       "question": "What now?",
+       "options": [
+        "Sit between them",
+        "Stay by the doors and watch",
+        "Alert the driver at the next stop",
+        "Mind my own business — she's an adult"
+       ]
+      }
+     },
+     {
+      "id": "s14",
+      "character": "c2",
+      "expression": "neutral",
+      "text": "Doors closing. Nine witnesses, one platform, and now your answers. The study hopes you never need this. But if you do, you've rehearsed it."
+     }
+    ],
+    "closing": "The train pulls out. Somewhere between the pillar and the doors, you decided what kind of witness you are. Your answers are now part of the research.",
+    "logo": "/story-art/g-mv-02/logo.svg",
+    "contextPages": [
+     "11:48pm. The last train is four minutes out. On the platform, a man is shouting at a woman by the edge. Nine people saw it. Nine people are suddenly very interested in their phones.",
+     "You are one of the nine. Priya, by the pillar, caught your eye — she wants to know what you'll do. Marcus, the station attendant, has handled this a hundred times. The story moves as you act.",
+     "Tap the glowing person to talk; some moments are timed, just like real life. There's no winning branch — only yours. Your decisions help researchers understand what turns a witness into a helper."
+    ]
+   },
+   "logo": "/story-art/g-mv-02/logo.svg",
+   "poster": "/story-art/g-mv-02/poster.svg",
+   "title": "Last Train",
+   "premise": "Late night on the metro platform. A man is shouting at a woman by the platform edge, and nine people are suddenly very interested in their phones."
+  },
+  {
+   "id": "g-mv-03",
+   "researcher_id": "wang-ming",
+   "kind": "story",
+   "reward_cents": 60,
+   "created_at": "2026-11-22T09:00:00Z",
+   "plays": 0,
+   "provider": "qwenwork",
+   "model": "QwenWork agent",
+   "status": "published",
+   "prompt": "{\"research_context\":\"How workers set boundaries against always-on overtime culture — what 'not mandatory' really does, and where people draw their line.\"}",
+   "spec": {
+    "kind": "story",
+    "title": "After Hours",
+    "headline": "'Not mandatory mandatory.' What does your evening actually cost?",
+    "premise": "6:40pm in the office plaza. The client deck lands tomorrow at nine, and Lena is 'making a night of it'. You had plans.",
+    "study": {
+     "construct": "Workplace boundaries and conformity",
+     "context": "How workers set boundaries against always-on overtime culture — what 'not mandatory' really does, and where people draw their line.",
+     "why": "Your replies show how pressure travels through a team, and which lines people actually defend.",
+     "blurb": "Tell us where you'd draw the line on 'not mandatory' overtime. Your replies show how pressure spreads through a team — and help workplaces respect the hours they don't pay for."
+    },
+    "world": {
+     "setting": "office",
+     "time": "dusk",
+     "mood": "golden, pressurized"
+    },
+    "characters": [
+     {
+      "id": "c1",
+      "name": "Lena",
+      "role": "Team lead",
+      "personality": "ambitious, warm, pressuring",
+      "look": "Coral blazer, dark hair in a bun, laptop under one arm.",
+      "colors": {
+       "robe": "#f2a08c",
+       "accent": "#b8a8e0"
+      },
+      "expressions": [
+       "neutral",
+       "happy",
+       "thinking",
+       "worried"
+      ],
+      "tap": {
+       "lines": [
+        "Quick thing — actually, no. Go home.",
+        "The deck will ship. It always does.",
+        "I heard you. Loud and clear."
+       ]
+      }
+     },
+     {
+      "id": "c2",
+      "name": "Tom",
+      "role": "Colleague who always says yes",
+      "personality": "tired, honest",
+      "look": "Yellow beanie, grey cardigan, coffee in a paper cup.",
+      "colors": {
+       "robe": "#f2d49b",
+       "accent": "#8fb8e8"
+      },
+      "expressions": [
+       "neutral",
+       "happy",
+       "thinking",
+       "worried"
+      ],
+      "tap": {
+       "lines": [
+        "Hey. Save yourself a year.",
+        "My kid's drawing of me is a laptop.",
+        "First no feels like quitting. It isn't."
+       ]
+      }
+     }
+    ],
+    "scenes": [
+     {
+      "id": "s1",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "There you are. Laptop's open, good. Quick thing — the client deck lands tomorrow at nine, so we're doing a late one tonight. Order food, make a night of it."
+     },
+     {
+      "id": "s2",
+      "character": "c1",
+      "expression": "happy",
+      "text": "It's not mandatory mandatory. But the people who show up are the people who get remembered. You know how it works."
+     },
+     {
+      "id": "s3",
+      "character": "c1",
+      "expression": "thinking",
+      "text": "It's 6:40pm. You had plans. So —",
+      "input": {
+       "type": "choice",
+       "question": "What do you say?",
+       "options": [
+        "I'm in — let's make a night of it",
+        "I'll stay an hour, then head out",
+        "I can't tonight — I'll do it early tomorrow",
+        "Ask who else is actually staying"
+       ]
+      }
+     },
+     {
+      "id": "s4",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "Interesting. 'Not mandatory mandatory' is the most powerful phrase in office life. Everyone hears the second word."
+     },
+     {
+      "id": "s5",
+      "character": "c1",
+      "expression": "thinking",
+      "text": "Lena pings the group chat: 'Who's staying?' Tom replies 'in!' instantly. Three typing dots appear. Your cursor is in the box.",
+      "input": {
+       "type": "choice",
+       "timeLimitMs": 12000,
+       "question": "The chat is waiting. What do you send?",
+       "options": [
+        "Reply 'in!' before overthinking",
+        "Reply 'first hour only'",
+        "Say nothing and pack up",
+        "DM Lena privately instead"
+       ]
+      }
+     },
+     {
+      "id": "s6",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "The chat is the pressure. Nobody orders you — the typing dots do. That's what the study measures."
+     },
+     {
+      "id": "s7",
+      "character": "c1",
+      "expression": "thinking",
+      "text": "So the real one, then.",
+      "input": {
+       "type": "choice",
+       "question": "If staying late became the norm on your team, what would you actually do?",
+       "options": [
+        "Match it — that's the job now",
+        "Do it visibly sometimes, not always",
+        "Set a hard boundary and accept the cost",
+        "Look for a team that doesn't"
+       ]
+      }
+     },
+     {
+      "id": "s8",
+      "character": "c1",
+      "expression": "neutral",
+      "text": "Tom's by the planters. He's said yes to every late night this month. Talk to him — then decide what you believe."
+     },
+     {
+      "id": "s9",
+      "character": "c2",
+      "expression": "neutral",
+      "text": "Hey. You're new-ish, so let me save you a year: I say yes because the first no felt like quitting. It never stops feeling that way."
+     },
+     {
+      "id": "s10",
+      "character": "c2",
+      "expression": "worried",
+      "text": "My kid's drawing of me is a laptop. That's not a joke. I checked the fridge twice."
+     },
+     {
+      "id": "s11",
+      "character": "c2",
+      "expression": "thinking",
+      "text": "So here's the one worth answering properly.",
+      "input": {
+       "type": "text",
+       "question": "What's your real line — the one you'd defend out loud — between dedication and being used?",
+       "placeholder": "Your line…"
+      }
+     },
+     {
+      "id": "s12",
+      "character": "c2",
+      "expression": "neutral",
+      "text": "Good line. Write it somewhere you'll see it at 6:40pm. Lines only work when they're decided in advance."
+     },
+     {
+      "id": "s13",
+      "character": "c2",
+      "expression": "thinking",
+      "text": "Tomorrow, Lena praises the 'night crew' in standup and asks who can do it again Thursday.",
+      "input": {
+       "type": "choice",
+       "question": "You:",
+       "options": [
+        "Volunteer — the praise is worth it",
+        "Stay quiet and let it pass",
+        "Say you'll help within work hours",
+        "Suggest the team fixes the deadline instead"
+       ]
+      }
+     },
+     {
+      "id": "s14",
+      "character": "c2",
+      "expression": "happy",
+      "text": "Standup's over. The deck will ship either way — it always does. What won't ship is your evening. Thanks for being straight with me."
+     }
+    ],
+    "closing": "The plaza lights come on. Somewhere between 'not mandatory' and 'in!', you drew a line. Your answers are now part of the research.",
+    "logo": "/story-art/g-mv-03/logo.svg",
+    "contextPages": [
+     "6:40pm. The client deck lands tomorrow at nine. Lena says the team is 'making a night of it' — not mandatory, mandatory. You had plans. Your cursor is blinking in the group chat.",
+     "Tom has said yes to every late night this month, and it's costing him more than hours. Between Lena's invite and Tom's example, you'll decide what your evening is worth — out loud.",
+     "Tap the glowing person to talk and answer honestly; some moments are timed. Your replies show researchers how pressure travels through a team — and which lines people actually defend."
+    ]
+   },
+   "logo": "/story-art/g-mv-03/logo.svg",
+   "poster": "/story-art/g-mv-03/poster.svg",
+   "title": "After Hours",
+   "premise": "6:40pm in the office plaza. The client deck lands tomorrow at nine, and Lena is 'making a night of it'. You had plans."
+  }
+ ]
+}

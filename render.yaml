@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: earnest
+    runtime: node
+    plan: free
+    buildCommand: node --version
+    startCommand: node scripts/render-boot.cjs && node --experimental-sqlite server/index.js
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: GEN_PROVIDER
+        value: api

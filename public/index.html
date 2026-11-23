@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+/* Installed-PWA sizing: with the translucent status bar the app owns the whole
+   physical screen, but iOS can report a stale, status-bar-short layout viewport
+   on cold launch (dvh/innerHeight all share it). screen.height is the hardware
+   constant and is never stale, so when running standalone we size the shell
+   from it. In a browser tab we fall back to normal dynamic viewport units. */
+(function () {
+  var root = document.documentElement;
+  var standalone = navigator.standalone === true ||
+    (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  var set = function () {
+    if (standalone && screen.height > 0) root.style.setProperty("--app-h", screen.height + "px");
+    else root.style.removeProperty("--app-h");
+  };
+  set();
+  addEventListener("resize", set);
+  addEventListener("orientationchange", set);
+})();
+</script>
+<meta name="description" content="EARNest: a gamified research phone app that swaps doomscrolling for full-screen study reels you get paid to answer.">
+<meta name="theme-color" content="#dbe9fb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Earnest">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+<title>EARNest: answer studies, earn rewards</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Marcellus&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./app.css">
+<link rel="stylesheet" href="./story.css">
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+  <defs>
+    <!-- moving electricity for the chosen Games icon: the gradient slides along
+         the gamepad's blue lines, with a faint fill inside the outline -->
+    <linearGradient id="eg-electric" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2e7fd6"/>
+      <stop offset="0.42" stop-color="#2e7fd6"/>
+      <stop offset="0.5" stop-color="#8fdcff"/>
+      <stop offset="0.58" stop-color="#2e7fd6"/>
+      <stop offset="1" stop-color="#2e7fd6"/>
+      <animateTransform attributeName="gradientTransform" type="translate" values="-0.9 -0.9; 0.9 0.9; -0.9 -0.9" dur="2.6s" repeatCount="indefinite"/>
+    </linearGradient>
+  </defs>
+</svg>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-cat" viewBox="0 0 24 24"><path d="M4 10 3.4 4.6a.5.5 0 0 1 .8-.45L8 7h8l3.8-2.85a.5.5 0 0 1 .8.45L20 10c0 4.4-3.6 8-8 8s-8-3.6-8-8Z"/><circle cx="9.2" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="14.8" cy="11" r="1.1" fill="currentColor" stroke="none"/><path d="M12 13.6c.7 1 1.8 1.2 2.6.8M12 13.6c-.7 1-1.8 1.2-2.6.8" fill="none"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="8" r="4.5"/><path d="m11 11 8.5 8.5M16.5 16.5l2-2M14 14l2-2"/></symbol>
+  <symbol id="i-reel" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="m10.2 8.8 5.2 3.2-5.2 3.2V8.8Z" fill="currentColor" stroke="none" opacity="0.9"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.6 2.6 5.5 5.9.8-4.3 4.2 1 6-5.2-2.9-5.2 2.9 1-6L3.5 9.9l5.9-.8L12 3.6Z"/></symbol>
+  <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.8 20.2a7.6 7.6 0 0 1 14.4 0"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.4s-7.6-4.6-7.6-10a4.4 4.4 0 0 1 7.6-3 4.4 4.4 0 0 1 7.6 3c0 5.4-7.6 10-7.6 10Z"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.4 2.8 5.6 13.4h5L9.8 21.2l8-10.8h-5.2l.8-7.6Z"/></symbol>
+  <symbol id="i-comment" viewBox="0 0 24 24"><path d="M20.4 12.2c0 4-3.8 7.2-8.4 7.2-1 0-2-.15-2.9-.43L4 20.6l1.7-3.7a6.7 6.7 0 0 1-2.1-4.7c0-4 3.8-7.2 8.4-7.2s8.4 3.2 8.4 7.2Z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+  <symbol id="i-gamepad" viewBox="0 0 24 24"><path d="M7.4 7.2h9.2a5 5 0 0 1 4.9 4.1l.7 4a3.3 3.3 0 0 1-5.9 2.5L14.8 16H9.2l-1.5 1.8a3.3 3.3 0 0 1-5.9-2.5l.7-4a5 5 0 0 1 4.9-4.1Z"/><path d="M7.6 10.4v2.8M6.2 11.8h2.8"/><circle cx="15.6" cy="11.2" r="0.9" fill="currentColor" stroke="none"/><circle cx="17.4" cy="13.2" r="0.9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9.4h3.6L12.4 5v14l-4.8-4.4H4v-5.2Z"/><path d="M16 8.8a4.6 4.6 0 0 1 0 6.4M18.6 6.2a8.2 8.2 0 0 1 0 11.6"/></symbol>
+  <symbol id="i-speaker-off" viewBox="0 0 24 24"><path d="M4 9.4h3.6L12.4 5v14l-4.8-4.4H4v-5.2Z"/><path d="m16.4 9.8 4.4 4.4M20.8 9.8l-4.4 4.4"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5 8 12l6.5 7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4.8 12.6 4.6 4.6L19.2 7"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.4" width="14" height="9.8" rx="2.2"/><path d="M8.2 10.2V7.6a3.8 3.8 0 0 1 7.6 0v2.6"/></symbol>
+  <symbol id="i-chest" viewBox="0 0 24 24"><path d="M4 10.6a8 8 0 0 1 16 0V12H4v-1.4Z"/><rect x="4" y="12" width="16" height="7.4" rx="1.6"/><path d="M12 10.6v8.8"/><circle cx="12" cy="14.4" r="1.4" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-medal" viewBox="0 0 24 24"><circle cx="12" cy="14.6" r="5.4"/><path d="m8.4 9.6-2.6-6h4.2l2 4.2M15.6 9.6l2.6-6H14l-2 4.2"/><path d="m12 12 1 2 2.2.3-1.6 1.6.4 2.2-2-1.1-2 1.1.4-2.2L8.8 14.3 11 14l1-2Z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 5.6H4.6v1.8a3.4 3.4 0 0 0 2.8 3.3M17 5.6h2.4v1.8a3.4 3.4 0 0 1-2.8 3.3M12 14v3.4M8.6 20.4h6.8l-.8-3H9.4l-.8 3Z"/></symbol>
+  <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M12 21v-7.4"/><path d="M12 13.6C12 9.8 9 7.4 4.8 7.6c-.3 4 2.6 6.6 7.2 6ZM12 13.6c0-3.2 2.6-5.2 6.2-5 .2 3.4-2.2 5.6-6.2 5Z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.6" cy="10.6" r="6.2"/><path d="m15.2 15.2 4.6 4.6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7.8 4.8 19 12 7.8 19.2V4.8Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4.6 19.4 5 15.6 16.2 4.4a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.4 19l-3.8.4Z"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="M7.4 4.6v14.8M7.4 19.4 4.2 16M7.4 19.4 10.6 16M16.6 19.4V4.6M16.6 4.6 13.4 8M16.6 4.6 19.8 8"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3.8h12v17l-6-4.8-6 4.8v-17Z"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9.4 5.6 6.8 6.4-6.8 6.4"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 21.4c3.6 0 6.4-2.6 6.4-6 0-4.6-4.2-6-4.2-10.2 0 0-2.4 1.4-2.4 4.6 0 1.4-.8 2.2-1.6 2.2-.9 0-1.4-.7-1.4-1.8-1.6 1.6-3.2 3.4-3.2 5.2 0 3.4 2.8 6 6.4 6Z"/></symbol>
+  <symbol id="i-verified" viewBox="0 0 24 24"><path d="m12 2.8 2.4 1.8 3-.2 1 2.8 2.4 1.8-1 2.9 1 2.9-2.4 1.8-1 2.8-3-.2L12 21.2l-2.4-1.8-3 .2-1-2.8L3.2 15l1-2.9-1-2.9L5.6 7.4l1-2.8 3 .2L12 2.8Z" fill="currentColor" stroke="none"/><path d="m8.6 12.2 2.3 2.3 4.5-4.7" stroke="var(--color-paper)" fill="none"/></symbol>
+  <symbol id="i-dna" viewBox="0 0 24 24"><path d="M6.4 2.8c0 6 11.2 5.4 11.2 11.4S6.4 19.6 6.4 21.2M17.6 2.8c0 6-11.2 5.4-11.2 11.4s11.2 5.4 11.2 7M7.6 5.4h8.8M7.2 8.6h9.6M8.8 16.6h6.4M8 19.4h8"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2.8 12c1.6-4 3.2-4 4.8 0s3.2 4 4.8 0 3.2-4 4.8 0M2.8 17c1.6-3 3.2-3 4.8 0s3.2 3 4.8 0 3.2-3 4.8 0M2.8 7c1.6-3 3.2-3 4.8 0s3.2 3 4.8 0 3.2-3 4.8 0"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M2.8 12h4l2.4-6 3.6 12 2.4-6h6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2.8 4.6 5.6v6c0 4.6 3.1 8.2 7.4 9.6 4.3-1.4 7.4-5 7.4-9.6v-6L12 2.8Z"/><path d="m8.8 11.8 2.2 2.2 4.2-4.4"/></symbol>
+  <symbol id="i-google" viewBox="0 0 48 48"><path fill="#EA4335" stroke="none" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" stroke="none" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" stroke="none" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" stroke="none" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></symbol>
+  <symbol id="i-apple" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></symbol>
+  <symbol id="i-brand-visa" viewBox="0 0 48 32"><rect x="1" y="1" width="46" height="30" rx="5" fill="none" stroke="var(--color-rule)"/><text x="24" y="21" text-anchor="middle" font-family="Satoshi, system-ui, sans-serif" font-size="12" font-weight="900" font-style="italic" fill="#1A1F71" stroke="none">VISA</text></symbol>
+  <symbol id="i-brand-mastercard" viewBox="0 0 48 32"><rect x="1" y="1" width="46" height="30" rx="5" fill="none" stroke="var(--color-rule)"/><circle cx="19" cy="16" r="8" fill="#EB001B" stroke="none"/><circle cx="29" cy="16" r="8" fill="#F79E1B" stroke="none"/><path d="M24 9.7a8 8 0 0 1 0 12.6 8 8 0 0 1 0-12.6z" fill="#FF5F00" stroke="none"/></symbol>
+  <symbol id="i-brand-amex" viewBox="0 0 48 32"><rect x="1" y="1" width="46" height="30" rx="5" fill="#2E77BC" stroke="none"/><text x="24" y="20" text-anchor="middle" font-family="Satoshi, system-ui, sans-serif" font-size="10" font-weight="900" fill="#fff" stroke="none">AMEX</text></symbol>
+  <symbol id="i-brand-discover" viewBox="0 0 48 32"><rect x="1" y="1" width="46" height="30" rx="5" fill="none" stroke="var(--color-rule)"/><circle cx="30" cy="16" r="6" fill="#F48120" stroke="none"/><text x="17" y="20" text-anchor="middle" font-family="Satoshi, system-ui, sans-serif" font-size="7.5" font-weight="900" fill="var(--color-ink)" stroke="none">DISC</text></symbol>
+  <symbol id="i-brand-diners" viewBox="0 0 48 32"><rect x="1" y="1" width="46" height="30" rx="5" fill="none" stroke="var(--color-rule)"/><circle cx="24" cy="16" r="8" fill="none" stroke="#0079BE" stroke-width="2.4"/><path d="M21 11.5v9M27 11.5v9" stroke="#0079BE" stroke-width="2.4"/></symbol>
+  <symbol id="i-brand-jcb" viewBox="0 0 48 32"><rect x="1" y="1" width="46" height="30" rx="5" fill="none" stroke="var(--color-rule)"/><rect x="9" y="9" width="9" height="14" rx="2" fill="#0E4C96" stroke="none"/><rect x="19.5" y="9" width="9" height="14" rx="2" fill="#C8202F" stroke="none"/><rect x="30" y="9" width="9" height="14" rx="2" fill="#008744" stroke="none"/></symbol>
+  <symbol id="i-brand-bank" viewBox="0 0 48 32"><rect x="1" y="1" width="46" height="30" rx="5" fill="none" stroke="var(--color-rule)"/><path d="M14 15h20M16 15v8M22 15v8M26 15v8M32 15v8M13 24h22M24 8l11 6H13z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2M12 3.4c2.6 2.3 3.9 5.2 3.9 8.6s-1.3 6.3-3.9 8.6c-2.6-2.3-3.9-5.2-3.9-8.6s1.3-6.3 3.9-8.6Z"/></symbol>
+  <symbol id="i-brand-paypal" viewBox="0 0 48 32"><rect x="1" y="1" width="46" height="30" rx="5" fill="none" stroke="var(--color-rule)"/><path fill="#003087" stroke="none" d="M19.5 8h6.2c3 0 4.8 1.6 4.4 4.5-.4 3.2-2.7 4.9-5.9 4.9h-2.4l-.9 6.1h-3.6L19.5 8z"/><path fill="#009CDE" stroke="none" d="M23.5 12h4.6c2.4 0 3.9 1.3 3.6 3.7-.4 2.8-2.3 4.3-5 4.3h-2l-.7 4.5h-3l2.5-12.5z" opacity="0.9"/></symbol>
+</svg>
+
+<div class="device" id="device">
+  <header class="statusbar" aria-hidden="true">
+    <span class="status-word">earnest</span>
+  </header>
+  <main id="screen" class="screen" tabindex="-1"></main>
+  <nav class="tabbar" aria-label="Main">
+    <button class="tab" data-nav="play" aria-label="Games"><span class="tab-ic-wrap"><svg class="ic" aria-hidden="true"><use href="#i-gamepad"/></svg><svg class="ic ic-spark" aria-hidden="true"><use href="#i-gamepad"/></svg></span><span>play</span></button>
+    <button class="tab" data-nav="search" aria-label="Search"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span>search</span></button>
+    <button class="tab" data-nav="feed" aria-label="Reels"><svg class="ic" aria-hidden="true"><use href="#i-reel"/></svg><span>reels</span></button>
+    <button class="tab" data-nav="impact" aria-label="Impact"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg><span>impact</span></button>
+    <button class="tab" data-nav="profile" aria-label="Profile"><svg class="ic" aria-hidden="true"><use href="#i-person"/></svg><span>profile</span></button>
+  </nav>
+  <div class="toast-wrap" id="toasts" role="status" aria-live="polite"></div>
+  <div class="modal-root" id="modal-root" hidden></div>
+</div>
+<script src="./vendor/three.min.js"></script>
+<script src="./mv3d.js"></script>
+<script src="./mvworld.js"></script>
+<script src="./story.js"></script>
+<script src="./app.js"></script>
+<script>
+if ("serviceWorker" in navigator) {
+  addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
