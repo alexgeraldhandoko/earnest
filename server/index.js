@@ -104,7 +104,10 @@ if (UPLOAD_DIR !== BUNDLED_UPLOADS && fs.existsSync(BUNDLED_UPLOADS)) {
 async function serveStatic(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (rel === "/") rel = "/index.html";
-  if (rel === "/admin" || rel === "/admin/") rel = "/admin/index.html";
+  /* /admin must end with a slash, or the page's relative assets (styles.css,
+     app.js, logo) resolve against the site root and the cockpit loads unstyled */
+  if (rel === "/admin") { res.writeHead(301, { Location: "/admin/" }); return res.end(); }
+  if (rel === "/admin/") rel = "/admin/index.html";
   let baseDir = PUBLIC_DIR;
   if (rel.startsWith("/uploads/")) { baseDir = UPLOAD_DIR; rel = rel.slice("/uploads".length); }
   const file = path.normalize(path.join(baseDir, rel));
