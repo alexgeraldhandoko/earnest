@@ -15,10 +15,13 @@ const inbox = require("./inbox");
 const qw = require("./qwenwork");
 const { TOPICS } = require("./topics");
 
-const COCKPIT_ORIGIN = "https://zfu5jcjg.qwenwork.page";
+const COCKPIT_ORIGINS = new Set([
+  "https://zfu5jcjg.qwenwork.page",
+  "https://jjj6ztb4.qwenwork.page",
+]);
 function cors(req, res) {
   const o = String(req.headers.origin || "");
-  if (o === COCKPIT_ORIGIN || /^http:\/\/localhost:\d+$/.test(o)) {
+  if (COCKPIT_ORIGINS.has(o) || /^http:\/\/localhost:\d+$/.test(o)) {
     res.setHeader("Access-Control-Allow-Origin", o);
     res.setHeader("Access-Control-Allow-Credentials", "true");
   }

@@ -1,5 +1,5 @@
 /* EARNest Founder Cockpit · live data layer.
-   Talks to the real Earnest backend (/api/admin/* on ptc2aptn), keeps the
+   Talks to the real Earnest backend (/api/admin/* on Render), keeps the
    DEMO object as the view-model (Object.assign from the bootstrap payload),
    and wires every cockpit action to a real, audit-logged endpoint.
    Growth & Investors remain demo until their integrations land. */
