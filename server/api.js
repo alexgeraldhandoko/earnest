@@ -368,10 +368,10 @@ async function handle(req, res, url, body, user, token) {
   }
 
   /* ---- impact finding page: study-derived finding + live responses ---- */
-  m = p.match(/^\/api\/impact\/(\d+)$/);
+  m = p.match(/^\/api\/impact\/([\w-]+)$/);
   if (m && method === "GET") {
     if (!needUser()) return;
-    const d = impacts.detail(Number(m[1]), user.id);
+    const d = impacts.detail(m[1], user.id);
     if (!d) return bad("Unknown impact.");
     return ok(d);
   }

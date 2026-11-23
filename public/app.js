@@ -1372,7 +1372,7 @@ routes["game/:id"].tab = "play";
 function impactCard(it) {
   const r = it.researcher;
   return `
-  <button class="card impact-card" data-act="open-finding" data-id="${it.id}" aria-label="Read the finding: ${esc(it.headline)}">
+  <button class="card impact-card" data-act="open-finding" data-id="${it.study}" aria-label="Read the finding: ${esc(it.headline)}">
     <span class="impact-art">
       <img src="${esc(it.poster)}" alt="" loading="lazy" decoding="async">
       <span class="grid-shade" aria-hidden="true"></span>

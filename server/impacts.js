@@ -8,7 +8,7 @@
 "use strict";
 const { q } = require("./db");
 
-const CONTENT_VERSION = 3;
+const CONTENT_VERSION = 4;
 
 /* Poster frames extracted from each study's wired video (public/impact/). */
 const POSTER = {
@@ -148,13 +148,15 @@ function rebuild() {
   }
   rows.sort((a, b) => (a.date < b.date ? 1 : -1));
   q.run("DELETE FROM impact_items");
-  for (const r of rows) {
+  /* stable explicit ids (1..N) — autoincrement ids drift on every rebuild,
+     which breaks clients holding a previously served list */
+  rows.forEach((r, i) => {
     q.run(
-      `INSERT INTO impact_items (date,icon,grow,title,text,paper_id,study_id,headline,description,poster,story,version)
-       VALUES (?,?,0,?,?,?,?,?,?,?,?,?)`,
-      r.date, r.c.icon, r.c.headline, r.c.description, r.paperId, r.sid, r.c.headline, r.c.description, POSTER[r.sid], JSON.stringify(r.c.story), CONTENT_VERSION
+      `INSERT INTO impact_items (id,date,icon,grow,title,text,paper_id,study_id,headline,description,poster,story,version)
+       VALUES (?,?,?,0,?,?,?,?,?,?,?,?,?)`,
+      i + 1, r.date, r.c.icon, r.c.headline, r.c.description, r.paperId, r.sid, r.c.headline, r.c.description, POSTER[r.sid], JSON.stringify(r.c.story), CONTENT_VERSION
     );
-  }
+  });
   console.log(`impacts: rebuilt ${rows.length} study-derived impacts (v${CONTENT_VERSION})`);
 }
 
@@ -195,9 +197,11 @@ function displayName(name) {
   return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0];
 }
 
-/* Full finding page: curated explanation + the actual responses, live. */
+/* Full finding page: curated explanation + the actual responses, live.
+   Accepts the stable study id (s-war) or a legacy numeric row id. */
 function detail(id, userId) {
-  const it = q.get("SELECT * FROM impact_items WHERE id=?", id);
+  let it = /^\d+$/.test(String(id)) ? q.get("SELECT * FROM impact_items WHERE id=?", id) : null;
+  if (!it) it = q.get("SELECT * FROM impact_items WHERE study_id=?", id);
   if (!it || !it.study_id) return null;
   const s = q.get("SELECT * FROM studies WHERE id=?", it.study_id);
   if (!s) return null;
