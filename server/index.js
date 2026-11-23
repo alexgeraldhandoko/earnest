@@ -59,6 +59,7 @@ const recommend = require("./recommend");
   });
   require("./qwenwork").boot().catch((e) => console.error("qwenwork boot:", e.message));
   require("./inbox").startBridge();
+  require("./inbox").startPoller();
   require("./gamebuilder").start();
 })().catch((e) => console.error("boot failed (server stays up):", e));
 
@@ -103,6 +104,7 @@ if (UPLOAD_DIR !== BUNDLED_UPLOADS && fs.existsSync(BUNDLED_UPLOADS)) {
 async function serveStatic(req, res, url) {
   let rel = decodeURIComponent(url.pathname);
   if (rel === "/") rel = "/index.html";
+  if (rel === "/admin" || rel === "/admin/") rel = "/admin/index.html";
   let baseDir = PUBLIC_DIR;
   if (rel.startsWith("/uploads/")) { baseDir = UPLOAD_DIR; rel = rel.slice("/uploads".length); }
   const file = path.normalize(path.join(baseDir, rel));

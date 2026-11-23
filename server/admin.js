@@ -28,7 +28,7 @@ function cors(req, res) {
 }
 function json(res, code, obj) { res.writeHead(code, { "Content-Type": "application/json" }); res.end(JSON.stringify(obj)); }
 function audit(actor, action, target) { try { q.run("INSERT INTO audit_log (actor,action,target) VALUES (?,?,?)", actor, action, target || null); } catch (_) {} }
-function pollToken() { try { return JSON.parse(fs.readFileSync(path.join(__dirname, "igwebhook-config.json"), "utf8")).poll_token || ""; } catch (_) { return ""; } }
+function pollToken() { try { return JSON.parse(fs.readFileSync(path.join(__dirname, "igwebhook-config.json"), "utf8")).poll_token || kvGet("ig_poll_token"); } catch (_) { return kvGet("ig_poll_token"); } }
 function kvGet(k) { const r = q.get("SELECT value FROM config WHERE key=?", k); return r && r.value ? r.value : ""; }
 function kvSet(k, v) {
   if (v == null || v === "") q.run("DELETE FROM config WHERE key=?", k);
@@ -276,7 +276,15 @@ function connections() {
     { name: "QwenWork OpenAPI", status: qw.enabled() ? "connected" : "demo", detail: qw.enabled() ? "Cloud responder + game builder on founder credits" : "Awaiting token handoff" },
     { name: "Outstand (Instagram)", status: qw.outstandKey() ? "connected" : "demo", detail: qw.outstandKey() ? "@earnestapp.official · webhook bridge" : "API key missing" },
     { name: "Page database", status: persist.ENABLED ? "connected" : "demo", detail: persist.ENABLED ? "Supabase mirror · survives redeploys" : "Local SQLite only" },
+    { name: "Hashmeta (CMS · SEO · CRM)", status: kvGet("hashmeta_snapshot") ? "connected" : "demo", detail: kvGet("hashmeta_snapshot") ? "earnest.geo.hashmeta.tech · synced " + rel(kvGet("hashmeta_synced_at")) : "Awaiting first agent sync" },
   ];
+}
+/* Growth read model — real Hashmeta metrics pushed by the growth agent via
+   /api/admin/hashmeta-sync (poll_token). Null until the first sync lands. */
+function growth() {
+  const raw = kvGet("hashmeta_snapshot");
+  if (!raw) return null;
+  try { const g = JSON.parse(raw); g.live = true; g.lastSync = rel(kvGet("hashmeta_synced_at")); return g; } catch (_) { return null; }
 }
 function bootstrap(admin) {
   const grid = coverageGrid();
@@ -334,7 +342,8 @@ function bootstrap(admin) {
     ],
     audit: q.all("SELECT actor, action, target, created_at FROM audit_log ORDER BY id DESC LIMIT 50").map((a) => ({ actor: a.actor, action: a.action, target: a.target || "", when: rel(a.created_at) })),
     inbox: inbox.summary(),
-    demoModules: ["growth", "investors"],
+    growth: growth(),
+    demoModules: growth() ? ["investors"] : ["growth", "investors"],
   };
 }
 
@@ -400,6 +409,16 @@ async function handle(req, res, url, body, cookieUser) {
     const r = q.run("UPDATE users SET role='admin' WHERE email=?", email);
     audit("system", "granted cockpit admin", email);
     return json(res, 200, { ok: true, found: r.changes > 0 });
+  }
+  /* Growth agent pushes real Hashmeta metrics here (poll_token-gated, like grant). */
+  if (p === "/api/admin/hashmeta-sync" && req.method === "POST") {
+    const pt = pollToken();
+    if (!pt || B.token !== pt) return json(res, 403, { error: "bad token" });
+    if (!B.snapshot || typeof B.snapshot !== "object") return json(res, 400, { error: "snapshot object required" });
+    kvSet("hashmeta_snapshot", JSON.stringify(B.snapshot));
+    kvSet("hashmeta_synced_at", new Date().toISOString());
+    audit("growth-agent", "synced Hashmeta metrics", B.site || "");
+    return json(res, 200, { ok: true });
   }
 
   const admin = adminUser(req, cookieUser);

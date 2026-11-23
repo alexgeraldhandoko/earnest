@@ -24,7 +24,18 @@ const { q } = require("./db");
 require("./config"); // ensures the config table exists
 
 const CFG_PATH = path.join(__dirname, "igwebhook-config.json");
-function webhookCfg() { try { return JSON.parse(fs.readFileSync(CFG_PATH, "utf8")); } catch (_) { return {}; } }
+function webhookCfg() {
+  let file = {};
+  try { file = JSON.parse(fs.readFileSync(CFG_PATH, "utf8")); } catch (_) {}
+  /* cloud runtimes have no secret files — the config table (mirrored to the
+     Page DB) carries the same values, so the bridge/capture work unchanged. */
+  return {
+    ...file,
+    poll_token: file.poll_token || kvGet("ig_poll_token"),
+    outstand_signing_secret: file.outstand_signing_secret || kvGet("ig_signing_secret"),
+    verify_token: file.verify_token || kvGet("ig_verify_token"),
+  };
+}
 
 const OAUTH_BASE_DEFAULT = "https://qwenwork.ai";
 const API_BASE_DEFAULT = "https://api.qwenwork.ai/v1";
@@ -56,9 +67,9 @@ function outstandKey() {
       if (m) return m[1].trim().replace(/^["']|["']$/g, "");
     }
   } catch (_) {}
-  return "";
+  return kvGet("outstand_api_key") || "";
 }
-function outstandBase() { return process.env.OUTSTAND_API_BASE || "https://api.outstand.so/v1"; }
+function outstandBase() { return process.env.OUTSTAND_API_BASE || kvGet("outstand_api_base") || "https://api.outstand.so/v1"; }
 
 const b64url = (buf) => Buffer.from(buf).toString("base64url");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

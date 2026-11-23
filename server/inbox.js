@@ -13,7 +13,11 @@ const { q } = require("./db");
 const qw = require("./qwenwork");
 
 const iso = (ms) => new Date(ms || Date.now()).toISOString();
-function webhookCfg() { try { return JSON.parse(fs.readFileSync(path.join(__dirname, "igwebhook-config.json"), "utf8")); } catch (_) { return {}; } }
+function webhookCfg() {
+  let file = {};
+  try { file = JSON.parse(fs.readFileSync(path.join(__dirname, "igwebhook-config.json"), "utf8")); } catch (_) {}
+  return { ...file, poll_token: file.poll_token || kvGet("ig_poll_token"), outstand_signing_secret: file.outstand_signing_secret || kvGet("ig_signing_secret") };
+}
 function kvGet(k) { const r = q.get("SELECT value FROM config WHERE key=?", k); return r && r.value ? r.value : ""; }
 function kvSet(k, v) {
   if (v == null || v === "") q.run("DELETE FROM config WHERE key=?", k);
@@ -170,4 +174,64 @@ function startBridge() {
   bridgeTimer.unref();
 }
 
-module.exports = { recordIn, recordOut, isPaused, flagHuman, setPaused, markRead, list, thread, summary, syncFromOutstand, syncIfStale, startBridge, bridgeTick };
+/* ---- live inbound poller (cloud responder) ----
+   The frozen sibling polls Outstand directly; on this backend we do the same
+   so new DMs arrive without re-pointing any webhook. Records new inbound
+   messages and hands them to the responder (which honours per-thread takeover).
+   The first run adopts a cursor at the newest message so the historical
+   backlog is backfilled but never auto-answered. */
+let pollTimer = null, polling = false;
+async function pollOutstand() {
+  if (polling || !qw.enabled() || kvGet("ig_poll_disabled") === "1") return;
+  const key = qw.outstandKey();
+  if (!key) return;
+  polling = true;
+  try {
+    const base = qw.outstandBase();
+    const H = { Authorization: "Bearer " + key, Accept: "application/json" };
+    const since = Number(kvGet("ig_poll_since") || 0);
+    const firstRun = !since;
+    const r = await fetch(base + "/conversations?limit=50", { headers: H, signal: AbortSignal.timeout(20000) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return;
+    let maxTs = since || Date.now();
+    for (const c of j.data || []) {
+      upsertConv(c.id, {
+        platform: c.network || "instagram",
+        handle: c.participantUsername || c.participantHandle || null,
+        display_name: c.participantDisplayName || null,
+        avatar: c.participantProfilePicture || null,
+        last_message_at: c.lastMessageAt || null,
+      });
+      const mr = await fetch(base + `/conversations/${encodeURIComponent(c.id)}/messages?limit=50`, { headers: H, signal: AbortSignal.timeout(20000) });
+      const mj = await mr.json().catch(() => ({}));
+      for (const m of mj.data || []) {
+        const ts = Date.parse(m.createdAt || m.platformSentAt || "") || Date.now();
+        if (ts > maxTs) maxTs = ts;
+        const out = m.direction === "outbound";
+        const text = String(m.content || "").slice(0, 2000);
+        if (!text) continue;
+        const res = q.run(`INSERT OR IGNORE INTO social_messages (conversation_id,direction,actor,external_mid,text,created_at)
+                           VALUES (?,?,?,?,?,?)`,
+          c.id, out ? "out" : "in", out ? (m.source === "api" ? "ai" : "admin") : "customer", m.id, text, new Date(ts).toISOString());
+        if (res.changes && !out) {
+          q.run(`UPDATE social_conversations SET unread=unread+1, last_message_at=?,
+                 needs_human=CASE WHEN bot_paused=1 THEN 1 ELSE needs_human END WHERE id=?`, new Date(ts).toISOString(), c.id);
+          if (!firstRun && ts > since) {
+            try { await qw.onIncoming({ source: "outstand", conversation_id: c.id, mid: m.id, text, ts }); } catch (_) {}
+          }
+        }
+      }
+    }
+    kvSet("ig_poll_since", String(maxTs));
+  } catch (_) { /* retry next tick */ }
+  finally { polling = false; }
+}
+function startPoller() {
+  if (pollTimer) return;
+  pollTimer = setInterval(() => pollOutstand().catch(() => {}), 45000);
+  pollTimer.unref();
+  pollOutstand().catch(() => {});
+}
+
+module.exports = { recordIn, recordOut, isPaused, flagHuman, setPaused, markRead, list, thread, summary, syncFromOutstand, syncIfStale, startBridge, bridgeTick, startPoller, pollOutstand };

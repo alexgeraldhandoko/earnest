@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EARNest · Founder Cockpit</title>
+<meta name="description" content="Earnest admin cockpit — one founder, an AI workforce, every flow audited. Design prototype with demo data.">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 13l3-8h12l3 8v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 13h5l2 3h4l2-3h5"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5.5 9A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 9V3"/><path d="M7.5 15h9"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 17l9 5 9-5"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M15 9.5c0-1.4-1.3-2.5-3-2.5s-3 1-3 2.4c0 3.4 6 1.6 6 5 0 1.4-1.3 2.6-3 2.6s-3-1.1-3-2.5"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 5a3.5 3.5 0 0 1 0 7M18 14.7c2 .7 3.2 2.5 3.7 5.3"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></symbol>
+    <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 10v4a1 1 0 0 0 1 1h3l7 4V5L7 9H4a1 1 0 0 0-1 1z"/><path d="M18 9a4 4 0 0 1 0 6M8 15l1.5 5"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M12 3c3.5 2 5.5 6 5.5 10l-2.5 3h-6L6.5 13C6.5 9 8.5 5 12 3z"/><circle cx="12" cy="10" r="2"/><path d="M9 16l-2 5 3-1.5M15 16l2 5-3-1.5"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M8 16v-5M12 16V8M16 16v-3M20 16V6"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4M8 4h8"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M9.5 16.5h5"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5l1.2 2.6 2.8-.6 1 2.7 2.7 1-.6 2.8 2.6 1.2-2.6 1.2.6 2.8-2.7 1-1 2.7-2.8-.6L12 21.5l-1.2-2.6-2.8.6-1-2.7-2.7-1 .6-2.8L2.3 12l2.6-1.2-.6-2.8 2.7-1 1-2.7 2.8.6z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5l13 7.5-13 7.5z"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14 0 18-3-4-3-14.5 0-18z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7L12.5 19"/></symbol>
+    <symbol id="i-linkedin" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10v7M8 7v.01M12 17v-4a2 2 0 0 1 4 0v4M12 10v7"/></symbol>
+    <symbol id="i-instagram" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17 7h.01"/></symbol>
+    <symbol id="i-facebook" viewBox="0 0 24 24"><path d="M14 8h2V5h-2a3 3 0 0 0-3 3v3H9v3h2v6h3v-6h2l1-3h-3V8a1 1 0 0 1 1-1z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M4 4l16 16M20 4L4 20"/></symbol>
+    <symbol id="i-reddit" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 5l1-3 3 1"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M9 16c1.5 1 4.5 1 6 0"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 18a9 9 0 1 1 16 0"/><path d="M12 14l4-4"/><circle cx="12" cy="14" r="1.5"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></symbol>
+    <symbol id="i-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6-6"/><circle cx="12" cy="12" r="1"/></symbol>
+  </defs>
+</svg>
+
+<div class="glow-pool glow-blue" aria-hidden="true"></div>
+<div class="glow-pool glow-lav" aria-hidden="true"></div>
+<div class="glow-pool glow-amber" aria-hidden="true"></div>
+
+<header class="topbar">
+  <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation"><svg class="ic"><use href="#i-layers"/></svg></button>
+  <div class="brand">
+    <img class="brand-logo" src="earnest-logo.png" alt="Earnest" width="38" height="38">
+    <span class="brand-name">earnest</span>
+    <span class="brand-sub">Admin</span>
+  </div>
+  <div class="topbar-search">
+    <svg class="ic"><use href="#i-search"/></svg>
+    <input type="search" placeholder="Search studies, users, runs…" aria-label="Search (demo)">
+  </div>
+  <div class="topbar-actions">
+    <button class="top-chip inbox-chip" data-view="approvals" title="Agent Approvals">
+      <svg class="ic"><use href="#i-inbox"/></svg><span>Approvals</span><b class="count" id="inboxCount">0</b>
+    </button>
+    <button class="top-chip" id="alertsBtn" title="Alerts">
+      <svg class="ic"><use href="#i-bell"/></svg><b class="count warn" id="alertCount">0</b>
+    </button>
+    <div class="top-chip credits-chip" title="Game builds today on QwenWork credits">
+      <svg class="ic"><use href="#i-zap"/></svg><span class="num" id="creditsToday">0</span><span class="credits-sub" id="creditsCap">/ 10 builds</span>
+    </div>
+    <div class="top-chip" id="liveChip" title="Data source"><span class="dot idle"></span><span id="liveLabel">demo</span></div>
+    <div class="founder" id="founderBadge" title="Founder/Admin">G</div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="sidenav" id="sidenav" aria-label="Cockpit workspaces">
+    <div class="nav-group">
+      <div class="nav-label">Operate</div>
+      <button class="nav-item" data-view="overview"><svg class="ic"><use href="#i-overview"/></svg>Overview</button>
+      <button class="nav-item" data-view="approvals"><svg class="ic"><use href="#i-inbox"/></svg>Agent Approvals<b class="nav-count" id="navInboxCount"></b></button>
+      <button class="nav-item" data-view="research"><svg class="ic"><use href="#i-flask"/></svg>Research Ops</button>
+      <button class="nav-item" data-view="catalog"><svg class="ic"><use href="#i-layers"/></svg>Paid Surveys</button>
+      <button class="nav-item" data-view="quality"><svg class="ic"><use href="#i-shield"/></svg>Response Quality and Trust<b class="nav-count warn" id="navFlagCount"></b></button>
+      <button class="nav-item" data-view="money"><svg class="ic"><use href="#i-coin"/></svg>Finance</button>
+      <button class="nav-item" data-view="people"><svg class="ic"><use href="#i-users"/></svg>Users</button>
+      <button class="nav-item" data-view="community"><svg class="ic"><use href="#i-chat"/></svg>Community</button>
+      <button class="nav-item" data-view="inbox"><svg class="ic"><use href="#i-instagram"/></svg>Social Inbox<b class="nav-count warn" id="navDmCount"></b></button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Grow</div>
+      <button class="nav-item" data-view="growth"><svg class="ic"><use href="#i-mega"/></svg>Growth</button>
+      <button class="nav-item" data-view="deploy"><svg class="ic"><use href="#i-rocket"/></svg>Deploy</button>
+      <button class="nav-item" data-view="investors"><svg class="ic"><use href="#i-chart"/></svg>Investors</button>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">System</div>
+      <button class="nav-item" data-view="agents"><svg class="ic"><use href="#i-bot"/></svg>Agents</button>
+      <button class="nav-item" data-view="settings"><svg class="ic"><use href="#i-gear"/></svg>Settings</button>
+    </div>
+    <div class="nav-foot">
+      <div class="nav-foot-line" id="navStatus"><span class="dot idle"></span>Connecting…</div>
+      <div class="nav-foot-line mono">live · ptc2aptn backend</div>
+    </div>
+  </nav>
+
+  <main class="workspace" id="workspace" tabindex="-1"></main>
+</div>
+
+<div class="toast-region" id="toasts" aria-live="polite"></div>
+
+<div class="login-overlay" id="loginOverlay" hidden>
+  <form class="login-card" id="loginForm">
+    <img src="earnest-logo.png" alt="Earnest" width="44" height="44">
+    <h1>Founder Cockpit</h1>
+    <p class="muted">Sign in with your Earnest admin account.</p>
+    <input type="email" id="loginEmail" placeholder="Email" autocomplete="username" required>
+    <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" required>
+    <button class="btn primary" type="submit" id="loginBtn">Sign in</button>
+    <div class="login-err" id="loginErr"></div>
+  </form>
+</div>
+
+<script src="data.js"></script>
+<script src="live.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

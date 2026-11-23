@@ -17,8 +17,16 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 
 const CFG_PATH = path.join(__dirname, "igwebhook-config.json");
+function kv(k) { try { const r = require("./db").q.get("SELECT value FROM config WHERE key=?", k); return r && r.value ? r.value : ""; } catch (_) { return ""; } }
 function cfg() {
-  try { return JSON.parse(fs.readFileSync(CFG_PATH, "utf8")); } catch (_) { return {}; }
+  let file = {};
+  try { file = JSON.parse(fs.readFileSync(CFG_PATH, "utf8")); } catch (_) {}
+  return {
+    ...file,
+    poll_token: file.poll_token || kv("ig_poll_token"),
+    outstand_signing_secret: file.outstand_signing_secret || kv("ig_signing_secret"),
+    verify_token: file.verify_token || kv("ig_verify_token"),
+  };
 }
 function appSecret() {
   if (process.env.IG_APP_SECRET) return process.env.IG_APP_SECRET;
@@ -28,7 +36,7 @@ function appSecret() {
       if (m) return m[1].trim().replace(/^["']|["']$/g, "");
     }
   } catch (_) {}
-  return null;
+  return kv("ig_app_secret") || null;
 }
 
 const QUEUE_CAP = 500;
