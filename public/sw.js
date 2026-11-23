@@ -3,7 +3,7 @@
    fresh on every load when online (cache is only an offline fallback), so a
    republished fix can never be masked by a stale cached UI. */
 "use strict";
-const VERSION = "earnest-shell-v36";
+const VERSION = "earnest-shell-v37";
 const SHELL = [
   "/", "/index.html", "/app.css", "/story.css", "/tokens.css", "/base.css", "/app.js", "/mvworld.js", "/mv3d.js", "/vendor/three.min.js", "/story.js",
   "/worlds/courtyard.jpg", "/worlds/courtyard.png", "/worlds/school.png", "/worlds/commute.jpg", "/worlds/commute.png", "/worlds/rooftop.jpg", "/worlds/office.png",
@@ -27,13 +27,20 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/uploads/") || url.pathname.startsWith("/videos/")) return;
+  /* The Founder Cockpit is a standalone page — never intercept it, so a
+     Render hiccup can't leave it unstyled or serve it a stale shell. */
+  if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) return;
 
   if (req.mode === "navigate") {
     e.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put("/index.html", copy));
+          /* only the app shell may overwrite the offline fallback — other
+             pages (e.g. researcher galleries) must not pollute it */
+          if (res.ok && (url.pathname === "/" || url.pathname === "/index.html")) {
+            const copy = res.clone();
+            caches.open(VERSION).then((c) => c.put("/index.html", copy));
+          }
           return res;
         })
         .catch(() => caches.match("/index.html"))
