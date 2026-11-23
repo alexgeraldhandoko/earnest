@@ -84,7 +84,7 @@ test("feed API forwards paging exclusions and records actual impressions", async
   const rec = { rankFeed: (user, type, opts) => { calls.push({ user, type, opts }); return [type === 'post' ? 'p-1' : 's-1']; }, event: (...args) => calls.push(args) };
   vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'server/api.js'), 'utf8'), {
     module: mod, __dirname: path.join(ROOT, 'server'), process: { env: {} }, console,
-    require: name => name === './db' ? { q, DATA_DIR: '/tmp' } : name === './recommend' ? rec : name.startsWith('./') ? {} : require(name),
+    require: name => name === './db' ? { q, DATA_DIR: '/tmp' } : name === './recommend' ? rec : name === './videohost' ? { playbackUrl: v => v } : name.startsWith('./') ? {} : require(name),
   });
   async function request(url, method = 'GET', body = null, user = { id: 7 }) {
     let status, result;

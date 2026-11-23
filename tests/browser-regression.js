@@ -32,7 +32,35 @@ async function refreshFeed() {
 }
 addEventListener('load', async () => {
   await until(() => $('#reels .live'), 'initial feed');
-  await regression('Fresh session starts unmuted', async () => check(state.sound && $('.sound-btn').getAttribute('aria-pressed') === 'true', 'default sound'));
+  await regression('Fresh session starts unmuted', async () => check(state.sound, 'default sound preference'));
+  await regression('Next and previous clips reuse warmed bytes and buffered players', async () => {
+    const strip = $('#reels');
+    const first = strip.children[0].querySelector('video');
+    await until(() => strip.children[1].querySelector('video')?.getAttribute('src')?.startsWith('blob:'), 'next clip did not enter blob cache');
+    const next = strip.children[1].querySelector('video'), source = next.getAttribute('src'), url = next.dataset.srcUrl;
+    await until(() => next.readyState >= 2, 'prefetched neighbour did not decode');
+    const requests = testCacheFetches.get(url);
+    strip.scrollTop = strip.clientHeight;
+    await until(() => strip.children[1].classList.contains('live'), 'next reel');
+    check(strip.children[1].querySelector('video') === next && next.getAttribute('src') === source, 'next player reloaded');
+    strip.scrollTop = 0;
+    await until(() => strip.children[0].classList.contains('live'), 'previous reel');
+    check(strip.children[0].querySelector('video') === first, 'previous player recreated');
+    check(testCacheFetches.get(url) === requests, 'warm next clip downloaded again');
+  });
+  await regression('Refresh preserves the audio-authorized player without mute toggles', async () => {
+    const strip = $('#reels'), first = strip.querySelector('.reel.live video');
+    const oldId = strip.querySelector('.reel.live').dataset.id;
+    testPhoneAudioPolicy = true; testUnlockedPlayers.add(first);
+    state.sound = true; first.muted = false; playReel(first);
+    try {
+      await refreshFeed();
+      await until(() => strip.querySelector('.reel.live')?.dataset.id !== oldId, 'new refresh batch');
+      const refreshed = strip.querySelector('.reel.live video');
+      check($('#reels') === strip && refreshed === first, 'refresh recreated the player');
+      check(state.sound && !refreshed.muted && !refreshed.dataset.soundBlocked, 'refresh lost audio authorization');
+    } finally { testPhoneAudioPolicy = false; }
+  });
   await regression('Both feeds paginate beyond 100 posts with bounded DOM and video nodes', async () => {
     for (const tab of ['gold', 'discover']) {
       if (state.feedTab !== tab) { $(`[data-tab="${tab}"]`).click(); await pause(100); }
@@ -50,17 +78,25 @@ addEventListener('load', async () => {
         check(strip.querySelectorAll('video').length <= 3, 'mounted video bound');
         check(new Set(feedItems().map(it => it.id)).size === feedItems().length, 'duplicate cards');
         check(posterCache.size <= 40, 'poster bound');
+        check(testBlobUrls.size <= 11, 'blob cache exceeded the video window');
       }
       check(viewed.size === 130, `repeated viewed posts ${tab}: ${viewed.size}`);
     }
   });
   await regression('Mute persists through tab switches and keep-alive refresh works', async () => {
-    $('.sound-btn').click(); check(!state.sound, 'muted');
-    switchTab('#/profile'); await pause(100); switchTab('#/feed'); await pause(100);
-    check(!state.sound && $('.sound-btn').getAttribute('aria-pressed') === 'false', 'mute preserved');
-    const old = feedItems(); await refreshFeed();
-    check(feedItems() !== old && state.reelIndex === 0, 'refresh after keep-alive');
-    check(!testSeen.has(feedItems()[1].id), 'fresh unviewed recommendations');
+    const live = $('#reels .live video');
+    testPhoneAudioPolicy = true; testUnlockedPlayers.add(live);
+    state.sound = true; live.muted = false; delete live.dataset.soundBlocked;
+    playReel(live); await pause(0);
+    try {
+      $('.sound-btn').click(); check(!state.sound, 'muted');
+      switchTab('#/profile'); await pause(100); switchTab('#/feed'); await pause(100);
+      check(!state.sound && $('.sound-btn').getAttribute('aria-pressed') === 'false', 'mute preserved');
+      const oldId = feedItems()[0].id, strip = $('#reels'); await refreshFeed();
+      check(feedItems()[0].id !== oldId && $('#reels') === strip && state.reelIndex === 0, 'refresh after keep-alive');
+      check($('#reels .live video').muted, 'refresh lost the mute preference');
+      check(!testSeen.has(feedItems()[1].id), 'fresh unviewed recommendations');
+    } finally { testPhoneAudioPolicy = false; }
   });
   await regression('Late refresh cannot replace another feed tab', async () => {
     testRefreshDelay = 600;

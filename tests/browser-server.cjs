@@ -25,5 +25,16 @@ http.createServer((req, res) => {
   const file = path.join(root, decodeURIComponent(url.pathname));
   if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); res.end(); return; }
   res.setHeader('Content-Type', ({'.js':'text/javascript','.css':'text/css','.mp4':'video/mp4','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml'})[path.extname(file)] || 'application/octet-stream');
+  const size = fs.statSync(file).size;
+  if (req.headers.range) {
+    const match = req.headers.range.match(/^bytes=(\d+)-(\d*)$/);
+    if (match) {
+      const start = Number(match[1]), end = match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+      if (start >= size) { res.writeHead(416, { 'Content-Range': `bytes */${size}` }); res.end(); return; }
+      res.writeHead(206, { 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1, 'Accept-Ranges': 'bytes' });
+      fs.createReadStream(file, { start, end }).pipe(res); return;
+    }
+  }
+  res.setHeader('Content-Length', size); res.setHeader('Accept-Ranges', 'bytes');
   fs.createReadStream(file).pipe(res);
 }).listen(4318, '127.0.0.1', () => console.log('Isolated browser tests: http://localhost:4318'));

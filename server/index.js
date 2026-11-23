@@ -126,7 +126,7 @@ async function serveStatic(req, res, url) {
       }
       /* cloud: audited clips live in the Page DB, not the runtime bundle */
       const m = rel.match(/^\/videos\/real\/([a-z0-9-]+)\.mp4$/i);
-      if (m && require("./videohost").ENABLED) {
+      if (m) {
         try { if (await require("./videohost").serve(req, res, m[1])) return; } catch (e) { console.error("videohost serve:", e.message); }
       }
       /* SPA fallback for non-file paths */

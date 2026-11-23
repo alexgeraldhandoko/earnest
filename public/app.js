@@ -487,19 +487,38 @@ function feedItems() {
 function reelShell(item, i) {
   return `<article class="reel" data-genre="${esc(item.genre)}" data-id="${esc(item.id)}" data-i="${i}" aria-label="Reel ${i + 1}"><div class="reel-inner"></div></article>`;
 }
+const reelPlayRequests = new WeakMap();
+function syncReelSoundButton() {
+  const video = document.querySelector(".reel.live video");
+  const blocked = state.sound && video && video.dataset.soundBlocked === "true";
+  const btn = document.querySelector(".sound-btn");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", String(state.sound && !blocked));
+  btn.setAttribute("aria-label", blocked ? "Turn on reel sound" : state.sound ? "Mute reel sound" : "Unmute reel sound");
+  btn.innerHTML = icon(state.sound && !blocked ? "speaker" : "speaker-off");
+}
 function playReel(video) {
-  video.play().catch((error) => {
-    // Browsers may require a gesture before audible autoplay. Keep the
-    // session preference and retry sound on the next interaction.
-    if (error.name === "NotAllowedError" && state.sound && video.closest(".reel.live")) {
-      video.muted = true;
-      video.play().catch(() => {});
-    }
+  const request = {};
+  const source = video.getAttribute("src");
+  reelPlayRequests.set(video, request);
+  const current = () => reelPlayRequests.get(video) === request && video.getAttribute("src") === source && video.isConnected && video.closest(".reel.live");
+  video.play().then(() => {
+    if (!current()) return;
+    if (!video.muted) delete video.dataset.soundBlocked;
+    syncReelSoundButton();
+  }).catch((error) => {
+    // A rejected play from an old source must never mute a newer reel.
+    if (!current() || error.name !== "NotAllowedError" || !state.sound) return;
+    video.dataset.soundBlocked = "true";
+    video.muted = true;
+    syncReelSoundButton();
+    video.play().catch(() => {});
   });
 }
+
 function mountReels(strip, items, startIdx, options = {}) {
   let liveIdx = -1, liveSince = 0, disposed = false, suspended = false;
-  let loading = false, retryTimer = null;
+  let loading = false, retryTimer = null, batchVersion = 0, refreshPlayer = null;
   const status = strip.parentElement.querySelector(".feed-status");
   const showStatus = (message) => {
     if (!status) return;
@@ -510,10 +529,11 @@ function mountReels(strip, items, startIdx, options = {}) {
     if (!options.loadMore || loading || disposed || suspended) return;
     clearTimeout(retryTimer);
     loading = true;
+    const version = batchVersion;
     showStatus("Finding more posts…");
     try {
       const batch = await options.loadMore(items.map((it) => it.id));
-      if (disposed || suspended) return;
+      if (disposed || suspended || version !== batchVersion) return;
       const ids = new Set(items.map((it) => it.id));
       const fresh = batch.filter((it) => !ids.has(it.id) && ids.add(it.id));
       // Keep 30 previous cards and a maximum of 90 metadata/DOM entries.
@@ -545,8 +565,9 @@ function mountReels(strip, items, startIdx, options = {}) {
       }
       if (strip.id === "reels") state.reelIndex = Math.max(0, liveIdx);
     } catch {
-      if (!disposed) showStatus("Couldn't load more posts. Tap to retry.");
+      if (!disposed && version === batchVersion) showStatus("Couldn't load more posts. Tap to retry.");
     } finally {
+      if (version !== batchVersion) return;
       loading = false;
       if (!disposed && !suspended && liveIdx >= items.length - 6) retryTimer = setTimeout(loadMore, 30000);
     }
@@ -600,7 +621,7 @@ function mountReels(strip, items, startIdx, options = {}) {
       const t = n.currentTime || 0;
       n.src = b.objUrl;
       if (t > 0.35) n.addEventListener("loadedmetadata", () => { try { n.currentTime = t; } catch {} }, { once: true });
-      if (isLive) n.play().catch(() => {});
+      if (isLive) { n.muted = !state.sound; playReel(n); }
     }
   };
   const pumpPrefetch = () => {
@@ -635,28 +656,30 @@ function mountReels(strip, items, startIdx, options = {}) {
   const schedulePrefetch = (idx) => {
     if (idx === pf.lastIdx) return;
     pf.lastIdx = idx;
+    // An in-flight neighbour remains useful; a clip now far outside the
+    // playback window must not hold up the next visible clip.
+    const inflightIdx = urlIndex.get(pf.inflight);
+    if (pf.ctrl && (inflightIdx == null || Math.abs(inflightIdx - idx) > 5)) abortPrefetch();
     const token = ++pf.token;
     const start = () => {
       if (token !== pf.token || disposed || suspended) return;
       evictBlobs(idx);
       const q = [];
-      for (let d = 1; d <= 5; d++) {
-        for (const j of [idx + d, idx - d]) {
-          const it = items[j];
-          if (!it || !it.video) continue;
-          /* clips are stored relative ("videos/…") locally and absolute in the
-             cloud — resolve both so the warmed URL matches the <video> request */
-          const url = resolved(it);
-          if (!/^https?:/.test(url) || blobStore.has(url) || url === pf.inflight || q.includes(url)) continue;
-          q.push(url);
-        }
+      const order = [idx + 1, idx - 1, idx];
+      for (let d = 2; d <= 5; d++) order.push(idx + d, idx - d);
+      for (const j of order) {
+        const it = items[j];
+        if (!it || !it.video) continue;
+        const url = resolved(it);
+        if (!/^https?:/.test(url) || blobStore.has(url) || url === pf.inflight || q.includes(url)) continue;
+        q.push(url);
       }
       pf.queue = q; // re-prioritise only — the in-flight download keeps running
       pumpPrefetch();
     };
     const live = strip.children[idx] && strip.children[idx].querySelector("video");
     if (!live || live.readyState >= 3) { start(); return; }
-    const t = setTimeout(start, 1200);
+    const t = setTimeout(start, 150);
     live.addEventListener("canplay", () => { clearTimeout(t); start(); }, { once: true });
   };
   /* Reusable video pool: a fixed set of <video> nodes whose src is swapped as
@@ -696,20 +719,23 @@ function mountReels(strip, items, startIdx, options = {}) {
           const b = blobStore.get(v.dataset.srcUrl);
           v.src = b ? b.objUrl : v.dataset.srcUrl;
           const reel = v.closest(".reel");
-          if (reel && reel.classList.contains("live")) v.play().catch(() => {});
+          if (reel && reel.classList.contains("live")) { v.muted = !state.sound; playReel(v); }
         }, 2500 * (tries + 1));
       }
     });
   };
-  const acquireVideo = (item, protect) => {
-    /* 1 */ let v = videoPool.find((n) => n.dataset.itemId === item.id);
-    if (v) {
+  const acquireVideo = (item, protect, current) => {
+    /* Refresh reuses the audible element whose playback the phone already
+       allowed. Its source changes, but its media permission survives. */
+    let v = current && refreshPlayer ? refreshPlayer : videoPool.find((n) => n.dataset.itemId === item.id);
+    if (current) refreshPlayer = null;
+    if (v && v.dataset.itemId === item.id) {
       /* upgrade to the in-memory copy if it arrived while this node was busy */
       const want = srcFor(item);
       if (v.getAttribute("src") !== want && v.readyState < 3) v.src = want;
       return v; // already bound — keeps its buffer for an instant return
     }
-    /* 2 */ v = videoPool.find((n) => !protect.has(n.dataset.itemId)); // rebind a node whose item left the window
+    /* 2 */ v = v || videoPool.find((n) => !protect.has(n.dataset.itemId)); // rebind a node whose item left the window
     if (!v && videoPool.length < POOL_MAX) {
       /* 3 */ v = document.createElement("video"); // grow only up to the cap
       v.className = "stage-video";
@@ -720,6 +746,8 @@ function mountReels(strip, items, startIdx, options = {}) {
       videoPool.push(v);
     }
     if (!v) v = videoPool[0];
+    reelPlayRequests.delete(v);
+    delete v.dataset.soundBlocked;
     v.dataset.itemId = item.id;
     v.dataset.srcUrl = resolved(item);
     v.setAttribute("aria-label", `${item.chip || ""} video for ${item.title || ""}`);
@@ -784,7 +812,7 @@ function mountReels(strip, items, startIdx, options = {}) {
         const item = items[i];
         const stage = inner.querySelector(".stage");
         if (item.video && stage) {
-          const v = acquireVideo(item, protect);
+          const v = acquireVideo(item, protect, i === idx);
           const slot = stage.querySelector(".stage-video-slot");
           if (slot) slot.appendChild(v);
           const poster = stage.querySelector(".stage-poster");
@@ -794,7 +822,6 @@ function mountReels(strip, items, startIdx, options = {}) {
              frames flow — never a dead blank stage */
           if (v.readyState >= 3) stage.classList.add("has-frame");
           else stage.classList.add("buffering");
-          if (i === idx && !matchMedia("(prefers-reduced-motion: reduce)").matches) v.play().catch(() => {});
         }
       } else if (!inWindow && inner.children.length) {
         const v = inner.querySelector("video");
@@ -804,7 +831,7 @@ function mountReels(strip, items, startIdx, options = {}) {
       const v = inner.querySelector("video");
       /* blob srcs load from memory (no network) — let neighbours decode their
          first frame so the swipe lands on a real picture, never a spinner */
-      if (v) v.preload = (i === idx || (v.getAttribute("src") || "").startsWith("blob:")) ? "auto" : "none";
+      if (v) v.preload = "auto"; // only the three mounted neighbours can load
     });
     schedulePrefetch(idx);
     if (idx >= items.length - 6) loadMore();
@@ -836,10 +863,30 @@ function mountReels(strip, items, startIdx, options = {}) {
     disposed = true; clearTimeout(retryTimer);
     if (status) status.removeEventListener("click", loadMore);
     reportDwell(liveIdx); observer.disconnect(); abortPrefetch();
+    for (const v of videoPool) reelPlayRequests.delete(v);
     for (const v of videoPool) { try { v.pause(); v.removeAttribute("src"); v.load(); v.remove(); } catch {} }
     videoPool.length = 0;
     for (const b of blobStore.values()) URL.revokeObjectURL(b.objUrl);
     blobStore.clear();
+  };
+  teardown.replaceItems = (fresh) => {
+    if (disposed || suspended) return;
+    batchVersion++; loading = false; clearTimeout(retryTimer);
+    reportDwell(liveIdx); observer.disconnect(); abortPrefetch();
+    refreshPlayer = strip.querySelector(".reel.live video");
+    for (const v of videoPool) { reelPlayRequests.delete(v); v.pause(); v.remove(); }
+    items.splice(0, items.length, ...fresh);
+    liveIdx = -1; pf.lastIdx = -1;
+    urlIndex.clear();
+    items.forEach((it, i) => { if (it.video) urlIndex.set(resolved(it), i); });
+    strip.innerHTML = items.map(reelShell).join("");
+    strip.scrollTop = 0;
+    if (strip.id === "reels") state.reelIndex = 0;
+    strip.querySelectorAll(".reel").forEach((r) => observer.observe(r));
+    evictBlobs(0); showStatus("");
+    const first = strip.firstElementChild;
+    if (first) { fillNeighborhood(0); setLive(first); }
+    else { syncReelSoundButton(); loadMore(); }
   };
   /* keep-alive hooks: pause when the feed tab is hidden, resume the exact
      reel (and its dwell timer) when the tab is shown again — no remount.
@@ -917,9 +964,9 @@ routes.feed = async (el) => {
   attachPullToRefresh(el.querySelector("#ptr-zone"), strip, async () => {
     const fresh = await api(`/api/feed?tab=${tab}&refresh=1`);
     if (!strip.isConnected || strip !== $("#reels") || state.feedTab !== tab) return;
-    if (tab === "discover") discoveries = fresh; else studies = fresh;
-    state.reelIndex = 0;
-    render();
+    baseTeardown.replaceItems(fresh);
+    state.feedPositions[tab] = 0;
+    onReelScroll();
     toast("Fresh picks, matched to you.");
   });
 };
@@ -3496,15 +3543,15 @@ document.addEventListener("click", (e) => {
       break;
     }
     case "toggle-sound": {
-      state.sound = !state.sound;
-      const btn = document.querySelector(".sound-btn");
-      if (btn) {
-        btn.setAttribute("aria-pressed", String(state.sound));
-        btn.setAttribute("aria-label", state.sound ? "Mute reel sound" : "Unmute reel sound");
-        btn.innerHTML = `<svg class="ic" aria-hidden="true"><use href="#i-${state.sound ? "speaker" : "speaker-off"}"/></svg>`;
-      }
       const live = document.querySelector(".reel.live video");
-      if (live) { live.muted = !state.sound; playReel(live); }
+      const blocked = state.sound && live && live.dataset.soundBlocked === "true";
+      if (!blocked) state.sound = !state.sound;
+      if (live) {
+        delete live.dataset.soundBlocked;
+        live.muted = !state.sound;
+        playReel(live);
+      }
+      syncReelSoundButton();
       toast(state.sound ? "Sound on for the reel you are watching." : "Sound muted.");
       break;
     }

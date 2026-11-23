@@ -12,6 +12,7 @@ const scrape = require("./scrape");
 const pipeline = require("./pipeline");
 const agentqueue = require("./agentqueue");
 const recommend = require("./recommend");
+const videohost = require("./videohost");
 const reader = require("./reader");
 const impacts = require("./impacts");
 const botdetect = require("./botdetect");
@@ -83,7 +84,7 @@ function researchersPayload() {
 function studyRow(s) {
   return {
     id: s.id, kind: "study", researcher: s.researcher_id, reward: s.reward_cents / 100, minutes: s.minutes,
-    genre: s.genre, video: s.video, image: s.image, media_kind: s.video ? "video" : "image",
+    genre: s.genre, video: videohost.playbackUrl(s.video), image: s.image, media_kind: s.video ? "video" : "image",
     credit: s.credit, chip: s.chip, title: s.title, sub: s.sub,
     abstract: s.abstract, authors: s.authors, source_url: s.source_url, verified: !!s.verified,
     questions: q.all("SELECT q,type,placeholder,options,meta FROM questions WHERE study_id=? ORDER BY ord", s.id)
@@ -121,7 +122,7 @@ function discoveryRow(d) {
   let tags = [];
   try { tags = JSON.parse(d.tags || "[]"); } catch {}
   return {
-    id: d.id, kind: "news", genre: d.genre, video: d.video, image: d.image,
+    id: d.id, kind: "news", genre: d.genre, video: videohost.playbackUrl(d.video), image: d.image,
     media_kind: d.media_kind || (d.video ? "video" : "image"),
     credit: d.credit, chip: d.chip, title: d.title, sub: d.sub, summary: d.summary, has_blog: !!d.blog,
     source_url: d.source_url, author: d.author, author_photo: authorPhoto(d.author), verified: !!d.verified, published_at: d.published_at, tags,
