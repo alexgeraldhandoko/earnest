@@ -5,7 +5,7 @@
    with INSERT OR IGNORE, never overwriting user data. */
 "use strict";
 const { q, tx } = require("./db");
-const { hashPassword } = require("./auth-util");
+const { hashPassword, verifyPassword } = require("./auth-util");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -271,8 +271,36 @@ function backfillResearcherPhotos() {
   if (un) console.log(`synced ${un} user researcher avatars`);
 }
 
+/* Founder Cockpit admin — runs on EVERY boot, after Supabase hydration.
+   Guarantees admin@earnest.app exists with a working password and role='admin',
+   and keeps the founder's Google account admin too. Override the password with
+   the ADMIN_PASSWORD env var; the default is documented in DEPLOY.md. */
+function ensureAdmin() {
+  const email = "admin@earnest.app";
+  const password = process.env.ADMIN_PASSWORD || "EarnestAdmin#2026";
+  const u = q.get("SELECT * FROM users WHERE email=?", email);
+  if (!u) {
+    const { hash, salt } = hashPassword(password);
+    const r = q.run("INSERT INTO users (name,email,password_hash,salt,initials,role) VALUES ('Founder',?,?,?, 'F','admin')", email, hash, salt);
+    q.run("INSERT OR IGNORE INTO settings (user_id) VALUES (?)", r.lastInsertRowid);
+    console.log("admin seeded: admin@earnest.app");
+  } else {
+    if (u.role !== "admin") q.run("UPDATE users SET role='admin' WHERE id=?", u.id);
+    /* self-heal: if the stored password doesn't match the known admin password
+       (e.g. an old row with an unknown password), reset it so login always works */
+    if (!verifyPassword(password, u.password_hash, u.salt)) {
+      const { hash, salt } = hashPassword(password);
+      q.run("UPDATE users SET password_hash=?, salt=? WHERE id=?", hash, salt, u.id);
+      console.log("admin password reset: admin@earnest.app");
+    }
+  }
+  /* founder's Google sign-in account is a cockpit admin as well */
+  q.run("UPDATE users SET role='admin' WHERE email='alexandergerald923@gmail.com' AND role<>'admin'");
+}
+
 function seed() {
   seedLegacy(); // idempotent — tops up legacy core rows lost to partial hydration
+  ensureAdmin();
   topUpCorpus();
   backfillResearcherPhotos();
   seedGames();

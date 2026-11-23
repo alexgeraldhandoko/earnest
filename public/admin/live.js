@@ -15,6 +15,7 @@ const LIVE = (() => {
   async function call(path, opts = {}) {
     const r = await fetch(API + path, {
       method: opts.method || "GET",
+      credentials: "include",
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
@@ -157,11 +158,12 @@ const LIVE = (() => {
       } catch (ex) { err.textContent = ex.message; }
       finally { btn.disabled = false; }
     });
-    if (!token) { showLogin(); return; }
+    /* No stored token? Try the existing Earnest session cookie first (Google
+       sign-in on the same backend) — only show the password form if that fails. */
     refresh().catch(() => showLogin());
     /* keep the cockpit fresh */
-    setInterval(() => { if (token && !document.hidden) refresh().catch(() => {}); }, 60000);
-    setInterval(() => { if (token && !document.hidden && typeof state !== "undefined" && state.view === "inbox") loadInbox().catch(() => {}); }, 15000);
+    setInterval(() => { if (!document.hidden) refresh().catch(() => {}); }, 60000);
+    setInterval(() => { if (!document.hidden && typeof state !== "undefined" && state.view === "inbox") loadInbox().catch(() => {}); }, 15000);
   }
 
   return { init, refresh, act, login, logout, loadInbox, openThread, reply, botToggle, draft, syncInbox, inboxState, call, post };
